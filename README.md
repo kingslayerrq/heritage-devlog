@@ -11,12 +11,13 @@ Either way, the result is a Markdown file under `src/content/posts/`. Pushing it
 
 ## The workflow at a glance
 
-1. Write the entry (a Markdown file, plus any pictures).
+1. Write the entry (a Markdown file, plus any pictures) on a branch.
 2. `git push`. The checker runs on your machine and stops the push if something is wrong.
-3. GitHub runs the same check, builds the site and publishes it, in about two minutes.
-4. If a Discord webhook is set up, the new entry is announced in the channel once it is live.
+3. Open a pull request. GitHub checks the entry again and checks that you only changed your own files.
+4. Merge it. The site is rebuilt and published in about two minutes.
+5. If a Discord webhook is set up, the new entry is announced in the channel once it is live.
 
-Entries go straight to `main`. Changes to the site itself go through a pull request. Details are in [Branches and pull requests](#branches-and-pull-requests).
+You can change your own entries and profile without anyone's approval. Other people's entries are off limits, and the site's own code needs an owner's approval. Details are in [Who can change what](#who-can-change-what).
 
 ## Publish an entry by hand
 
@@ -40,11 +41,12 @@ Entries go straight to `main`. Changes to the site itself go through a pull requ
      "bio": "One or two sentences.",
      "avatar": "/media/authors/your-id.png",
      "discord": "123456789012345678",
+     "github": "your-github-user-name",
      "links": [{ "label": "GitHub", "url": "https://github.com/you" }]
    }
    ```
 
-   `discord` is your Discord user id. It adds a public link to your Discord profile, so leave it out unless you want strangers to be able to message you. Put the avatar picture at `public/media/authors/your-id.png`; without one, the site shows your initial.
+   `github` is what makes the profile yours: only that GitHub account (and the repository owners) can change the profile or the entries signed with it. Set it when you create the profile; it is not shown on the site. `discord` is your Discord user id. It adds a public link to your Discord profile, so leave it out unless you want strangers to be able to message you. Put the avatar picture at `public/media/authors/your-id.png`; without one, the site shows your initial.
 
 3. **Create the entry.** Add `src/content/posts/YYYY-MM-DD-short-title.md`. The file name becomes the address: `/posts/YYYY-MM-DD-short-title/`.
 
@@ -82,48 +84,51 @@ Entries go straight to `main`. Changes to the site itself go through a pull requ
 
    It names the file and line of anything wrong. See [What the checker looks for](#what-the-checker-looks-for). You do not have to remember to run it: it runs by itself whenever you push.
 
-6. **Publish.**
+6. **Publish through a pull request.** `main` is protected: nobody but the repository owners can push to it directly.
 
    ```sh
+   git switch -c short-title
    git add .
    git commit -m "Add entry: short title"
-   git push
+   git push -u origin short-title
    ```
 
    The checker runs first, on your machine. If it finds an error the push is stopped and nothing leaves your computer: fix it, commit, push again.
 
-   If git refuses the push because someone else published in the meantime, run `git pull --rebase` and push again.
+   Open the link git prints and create the pull request. The **Check entries** run then checks the entry again and checks that every file you changed is yours (see [Who can change what](#who-can-change-what)). When it is green, press **Merge**. You do not need anyone's approval for your own entries.
 
-   Once the push goes through, the **Build and deploy** workflow (Actions tab) runs the same checker, builds the site and publishes it, usually within two minutes. If a Discord webhook is configured, the entry is announced there once the site is live. If the check or the build fails, nothing is published and the previous version of the site stays up; open the failed run to see which file and line was wrong.
+   Merging starts the **Build and deploy** workflow (Actions tab), which publishes the site, usually within two minutes. If a Discord webhook is configured, the entry is announced there once the site is live. If the build fails, nothing is published and the previous version of the site stays up.
 
-To change or remove an entry, edit or delete its file and push again. Announcements are only sent for newly added entries.
+   If you do not have write access to this repository, fork it on GitHub, push to your fork, and open the pull request from there; an owner will merge it.
 
-## Where the check runs
+To change or remove one of your entries, edit or delete its file and open another pull request. Announcements are only sent for newly added entries.
 
-| When | What happens on an error |
+## Who can change what
+
+| Files | Who can change them |
 | --- | --- |
-| `git push` from your machine (set up by `npm install`) | The push is stopped |
-| A push to `main` by any route, including edits made on github.com | The site is not rebuilt; the previous version stays up |
-| A pull request, or a push to another branch | The **Check entries** run fails and marks the problems on the files |
+| An author profile, `src/content/authors/<id>.json`, and its picture | The GitHub account in its `github` field |
+| An entry, `src/content/posts/…md`, and its folder under `public/media/` | The authors listed in the entry |
+| Everything else: layouts, styles, scripts, workflows, config, sample media | The repository owners, or anyone with an owner's approval on the pull request |
+| Anything at all | The repository owners (listed in `.github/CODEOWNERS`) |
 
-The first is a convenience and can be skipped (`git push --no-verify`, or editing on github.com). The second cannot, and is what protects the live site.
+How this is enforced:
 
-## Branches and pull requests
+- **`main` is protected.** Changes arrive only through pull requests whose **Check entries** run has passed. Owners are exempt and can push directly.
+- **Ownership of entries** is checked by `scripts/check-ownership.mjs` in that run. It looks at who opened the pull request, and at each entry's authors as they were before the change, so adding yourself to someone else's entry does not let you edit it. To add a co-author, or to hand an entry over, ask one of its authors or an owner.
+- **The site's own code** is covered by `.github/CODEOWNERS`: GitHub will not let a pull request that touches it be merged until an owner has approved.
 
-- **Entries** (a Markdown file, its media, your author profile): push straight to `main`. The checks above are the review.
-- **Changes to the site itself** (anything under `src/` other than `content/`, plus `scripts/`, `.github/` and the config files): make a branch and open a pull request, so someone else looks before it affects every page.
-- **An entry you want a second opinion on**: a pull request works for that too. Mark the entry `draft: true` if it should be merged before it is ready to show.
+Entries with no `authors`, and profiles with no `github`, belong to the owners.
 
-This is the team's convention; GitHub does not enforce it. To open a pull request:
+## Where the checks run
 
-```sh
-git switch -c short-description
-git add .
-git commit -m "What changed"
-git push -u origin short-description
-```
+| When | What is checked | On an error |
+| --- | --- | --- |
+| `git push` from your machine (set up by `npm install`) | Entries are valid | The push is stopped |
+| A pull request, or a push to a branch | Entries are valid; the changed files are yours; the site builds | The pull request cannot be merged |
+| A change landing on `main` | Entries are valid; the site builds | The site is not rebuilt; the previous version stays up |
 
-Then open the link git prints, create the pull request, and wait for **Check entries** to pass before merging. Merging into `main` publishes the change.
+The first is a convenience and can be skipped with `git push --no-verify`. The other two cannot.
 
 ## What an entry can contain
 

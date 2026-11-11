@@ -11,7 +11,7 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const postsDir = join(root, 'src/content/posts'), authorsDir = join(root, 'src/content/authors'), publicDir = join(root, 'public');
 const MAX_FILE = 25 * 1024 * 1024, WARN_SITE = 800 * 1024 * 1024;
 const POST_KEYS = ['title', 'date', 'discipline', 'authors', 'summary', 'tags', 'cover', 'coverAlt', 'visibility', 'draft'];
-const AUTHOR_KEYS = ['name', 'role', 'discipline', 'bio', 'avatar', 'discord', 'links'];
+const AUTHOR_KEYS = ['name', 'role', 'discipline', 'bio', 'avatar', 'discord', 'github', 'links'];
 const BLOCKS = ['hx-video', 'hx-gallery', 'hx-compare', 'hx-model', 'hx-blueprint', 'hx-build', 'hx-note'];
 
 // The list of crafts lives in one place; read its keys rather than repeating them here.
@@ -56,6 +56,7 @@ for (const file of walk(authorsDir).filter(path => path.endsWith('.json'))) {
   if (data.discipline !== undefined && !disciplines.includes(data.discipline)) report('error', file, 1, `"discipline" must be one of: ${disciplines.join(', ')}.`);
   if (data.discord !== undefined && !/^\d{15,22}$/.test(String(data.discord))) report('error', file, 1, '"discord" must be a Discord user id (digits only, in quotes).');
   if (data.discord !== undefined && typeof data.discord !== 'string') report('error', file, 1, '"discord" must be written in quotes, or the id loses its last digits.');
+  if (data.github !== undefined && !/^[A-Za-z0-9-]{1,39}$/.test(String(data.github))) report('error', file, 1, '"github" must be a GitHub user name, without "@" or a link.');
   if (typeof data.avatar === 'string') checkMedia(file, 1, data.avatar, 'The avatar');
   if (data.links !== undefined) {
     if (!Array.isArray(data.links)) report('error', file, 1, '"links" must be a list.');

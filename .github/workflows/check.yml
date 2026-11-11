@@ -15,11 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the ownership check compares against main
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Install
         run: npm ci
+      - name: Check who owns the changed files
+        run: node scripts/check-ownership.mjs
+        env:
+          ACTOR: ${{ github.event.pull_request.user.login || github.actor }}
+          BASE: origin/main
       - name: Check entries
         run: npm run validate
       - name: Build

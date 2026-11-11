@@ -32,6 +32,8 @@ const authors = defineCollection({
     avatar: z.string().optional(),
     /** Discord user id. Present only when the author chose to show a link to their Discord profile. */
     discord: z.string().regex(/^\d{15,22}$/).optional(),
+    /** GitHub account that owns this profile and the entries signed with it. Not shown on the site. */
+    github: z.string().regex(/^[A-Za-z0-9-]{1,39}$/).optional(),
     links: z.array(z.object({ label: z.string(), url: z.string().url() })).default([]),
   }),
 });
