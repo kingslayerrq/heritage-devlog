@@ -63,7 +63,12 @@ if (unapproved.length && !dryRun) {
   }
   if (reverted.length) {
     try { git('push', 'origin', 'HEAD:main'); }
-    catch { git('pull', '--rebase', 'origin', 'main'); git('push', 'origin', 'HEAD:main'); }
+    catch {
+      // Either main moved meanwhile (retry once), or the change touched workflow files, which the
+      // workflow's own token is not allowed to rewrite. Then an owner has to step in.
+      try { git('pull', '--rebase', 'origin', 'main'); git('push', 'origin', 'HEAD:main'); }
+      catch { failed.push(...reverted); reverted = []; }
+    }
   }
 } else if (dryRun) reverted = unapproved;
 output('reverted', String(reverted.length > 0 && !dryRun));

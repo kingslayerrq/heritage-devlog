@@ -134,6 +134,8 @@ Open the **Actions** tab, choose **Undo a change**, press **Run workflow**, and 
 
 ### Limits
 
+A change to the workflow files under `.github/` cannot be undone automatically (GitHub does not let a workflow rewrite workflows). In that case the site is simply not rebuilt and the owners are alerted to deal with it by hand.
+
 These rules guard against mistakes, not against a determined collaborator: everyone with write access can push to `main`, and the guard itself lives in this repository. An alert arrives after the change is already live. If that ever stops being enough, switch `main` back to pull requests only (Settings → Branches).
 
 ## Where the checks run
