@@ -22,7 +22,7 @@ jobs:
           node-version: 22
       - name: Install
         run: npm ci
-      - name: Check who owns the changed files
+      - name: Note changes to other people's files (never blocks)
         run: node scripts/check-ownership.mjs
         env:
           ACTOR: ${{ github.event.pull_request.user.login || github.actor }}

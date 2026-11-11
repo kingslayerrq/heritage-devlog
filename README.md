@@ -11,13 +11,12 @@ Either way, the result is a Markdown file under `src/content/posts/`. Pushing it
 
 ## The workflow at a glance
 
-1. Write the entry (a Markdown file, plus any pictures) on a branch.
-2. `git push`. The checker runs on your machine and stops the push if something is wrong.
-3. Open a pull request. GitHub checks the entry again and checks that you only changed your own files.
-4. Merge it. The site is rebuilt and published in about two minutes.
-5. If a Discord webhook is set up, the new entry is announced in the channel once it is live.
+1. Write the entry (a Markdown file, plus any pictures).
+2. `git push` to `main`. The checker runs on your machine and stops the push if something is wrong.
+3. GitHub checks it again, builds the site and publishes it, in about two minutes.
+4. The new entry is announced in Discord once it is live.
 
-You can change your own entries and profile without anyone's approval. Other people's entries are off limits, and the site's own code needs an owner's approval. Details are in [Who can change what](#who-can-change-what).
+New entries are always welcome, and you can credit teammates as co-authors. Changing someone else's entry is allowed but they are told in Discord, and an owner can undo it. Changes to the site's own code need an owner's approval. Details are in [Who can change what](#who-can-change-what).
 
 ## Publish an entry by hand
 
@@ -46,7 +45,7 @@ You can change your own entries and profile without anyone's approval. Other peo
    }
    ```
 
-   `github` is what makes the profile yours: only that GitHub account (and the repository owners) can change the profile or the entries signed with it. Set it when you create the profile; it is not shown on the site. `discord` is your Discord user id. It adds a public link to your Discord profile, so leave it out unless you want strangers to be able to message you. Put the avatar picture at `public/media/authors/your-id.png`; without one, the site shows your initial.
+   `github` is what makes the profile yours: changes to the profile, or to entries signed with it, by anyone else are reported to you in Discord. Set it when you create the profile; it is not shown on the site. `discord` is your Discord user id. It adds a public link to your Discord profile, so leave it out unless you want strangers to be able to message you. Put the avatar picture at `public/media/authors/your-id.png`; without one, the site shows your initial.
 
 3. **Create the entry.** Add `src/content/posts/YYYY-MM-DD-short-title.md`. The file name becomes the address: `/posts/YYYY-MM-DD-short-title/`.
 
@@ -84,51 +83,68 @@ You can change your own entries and profile without anyone's approval. Other peo
 
    It names the file and line of anything wrong. See [What the checker looks for](#what-the-checker-looks-for). You do not have to remember to run it: it runs by itself whenever you push.
 
-6. **Publish through a pull request.** `main` is protected: nobody but the repository owners can push to it directly.
+6. **Publish.**
 
    ```sh
-   git switch -c short-title
    git add .
    git commit -m "Add entry: short title"
-   git push -u origin short-title
+   git push
    ```
 
    The checker runs first, on your machine. If it finds an error the push is stopped and nothing leaves your computer: fix it, commit, push again.
 
-   Open the link git prints and create the pull request. The **Check entries** run then checks the entry again and checks that every file you changed is yours (see [Who can change what](#who-can-change-what)). When it is green, press **Merge**. You do not need anyone's approval for your own entries.
+   If git refuses the push because someone else published in the meantime, run `git pull --rebase` and push again.
 
-   Merging starts the **Build and deploy** workflow (Actions tab), which publishes the site, usually within two minutes. If a Discord webhook is configured, the entry is announced there once the site is live. If the build fails, nothing is published and the previous version of the site stays up.
+   Once the push goes through, the **Build and deploy** workflow (Actions tab) checks the entry again, builds the site and publishes it, usually within two minutes. The entry is then announced in Discord. If the check or the build fails, nothing is published and the previous version of the site stays up; open the failed run to see which file and line was wrong.
 
-   If you do not have write access to this repository, fork it on GitHub, push to your fork, and open the pull request from there; an owner will merge it.
+   You need write access to push. Team members get an invitation when they link their GitHub account through the `/devlog` command in Discord. Without access, fork the repository and open a pull request.
 
-To change or remove one of your entries, edit or delete its file and open another pull request. Announcements are only sent for newly added entries.
+To change or remove one of your entries, edit or delete its file and push again. Announcements are only sent for newly added entries.
 
 ## Who can change what
 
-| Files | Who can change them |
+| What you do | What happens |
 | --- | --- |
-| An author profile, `src/content/authors/<id>.json`, and its picture | The GitHub account in its `github` field |
-| An entry, `src/content/posts/…md`, and its folder under `public/media/` | The authors listed in the entry |
-| Everything else: layouts, styles, scripts, workflows, config, sample media | The repository owners, or anyone with an owner's approval on the pull request |
-| Anything at all | The repository owners (listed in `.github/CODEOWNERS`) |
+| Add a new entry, profile or media file | Always accepted. Co-authors you credit are told in Discord. |
+| Change your own entry, its media, or your profile | Accepted. |
+| Change or delete someone else's entry, media or profile | Accepted and published, but the owners of those files, you and the repository owners are mentioned in a Discord alert. An owner can undo it. |
+| Change the site's own code: layouts, styles, scripts, workflows, config | Pushed straight to `main`, it is undone automatically within a minute or so and never published. Open a pull request instead; it goes in once a repository owner has approved and merged it. |
 
-How this is enforced:
+What counts as yours:
 
-- **`main` is protected.** Changes arrive only through pull requests whose **Check entries** run has passed. Owners are exempt and can push directly.
-- **Ownership of entries** is checked by `scripts/check-ownership.mjs` in that run. It looks at who opened the pull request, and at each entry's authors as they were before the change, so adding yourself to someone else's entry does not let you edit it. To add a co-author, or to hand an entry over, ask one of its authors or an owner.
-- **The site's own code** is covered by `.github/CODEOWNERS`: GitHub will not let a pull request that touches it be merged until an owner has approved.
+- **A profile** belongs to the GitHub account in its `github` field.
+- **An entry**, and its folder under `public/media/`, belongs to the authors it listed *before* your change. Adding yourself to someone else's entry does not make it yours.
+- **Entries with no `authors`, profiles with no `github`**, and anything else under `public/media/` belong to the repository owners.
+- **Repository owners** are named on the first line of `.github/CODEOWNERS` and can change anything.
 
-Entries with no `authors`, and profiles with no `github`, belong to the owners.
+To propose a change to the site's code:
+
+```sh
+git switch -c short-description
+git add .
+git commit -m "What changed"
+git push -u origin short-description
+```
+
+Open the link git prints, create the pull request, and wait for an owner's approval before merging.
+
+### For owners: undoing a change
+
+Open the **Actions** tab, choose **Undo a change**, press **Run workflow**, and paste the commit id from the Discord alert (or from the commit's page). The commit is reversed on `main` and the site is republished. Only owners can run it.
+
+### Limits
+
+These rules guard against mistakes, not against a determined collaborator: everyone with write access can push to `main`, and the guard itself lives in this repository. An alert arrives after the change is already live. If that ever stops being enough, switch `main` back to pull requests only (Settings → Branches).
 
 ## Where the checks run
 
-| When | What is checked | On an error |
-| --- | --- | --- |
-| `git push` from your machine (set up by `npm install`) | Entries are valid | The push is stopped |
-| A pull request, or a push to a branch | Entries are valid; the changed files are yours; the site builds | The pull request cannot be merged |
-| A change landing on `main` | Entries are valid; the site builds | The site is not rebuilt; the previous version stays up |
+| When | What happens |
+| --- | --- |
+| `git push` from your machine (set up by `npm install`) | Entries are checked; an error stops the push |
+| A change landing on `main` | Unapproved site-code changes are undone; changes to other people's files are reported to Discord; entries are checked and the site is built. If the check or build fails, the previous version stays up |
+| A pull request, or a push to another branch | Entries are checked and the site is built; changes to other people's files are noted on the pull request without blocking it |
 
-The first is a convenience and can be skipped with `git push --no-verify`. The other two cannot.
+The first is a convenience and can be skipped with `git push --no-verify`. The second cannot.
 
 ## What an entry can contain
 
@@ -175,6 +191,20 @@ To switch it on:
 2. In this repository, open **Settings → Secrets and variables → Actions → New repository secret**. Name it `DISCORD_DEVLOG_WEBHOOK` and paste the URL.
 
 The URL is a password for posting to that channel: keep it only in that secret, never in a file. Use a repository secret, not an environment secret; the announce job does not run in an environment, so it could not read one. Without the secret the announce step does nothing and still passes.
+
+### Alerts for the team
+
+The alerts described under [Who can change what](#who-can-change-what) go to a second webhook, so they can live in a team-only channel instead of the public one. Create a webhook in that channel the same way and save its URL as the repository secret `DISCORD_DEVLOG_ALERTS_WEBHOOK`. Without it, alerts appear only in the workflow's log.
+
+To mention people, the workflow needs to know which Discord account goes with which GitHub account. That list is the repository **variable** `DEVLOG_PEOPLE` (Settings → Secrets and variables → Actions → Variables), kept up to date by the Discord bot when someone links their GitHub account. It can also be edited by hand:
+
+```json
+[{ "github": "octocat", "discord": "123456789012345678", "author": "their-author-id" }]
+```
+
+Anyone not on the list is named in plain text instead of being mentioned.
+
+To try the alerts without changing anything, run **Build and deploy** by hand from the Actions tab and fill in a GitHub user name under "Test the guard only": the last commit is judged as if that person had pushed it, and the message is marked as a test.
 
 ## One-time repository setup
 

@@ -1,8 +1,9 @@
-# Who must approve a change. GitHub requires an owner's review on any pull request that touches
-# a file owned here. The first line also names the repository owners for scripts/check-ownership.mjs.
+# The first line names the repository owners. They may change anything, are asked to review pull
+# requests that touch the site's own code, and are the only ones who can approve such a change:
+# scripts/guard.mjs undoes site-code changes that reach main without an owner's approval.
 *                 @kingslayerrq
 
 # Entries, author profiles and media are open to the whole team, so they have no owner here.
-# scripts/check-ownership.mjs decides who may change which of them.
+# Changing someone else's is allowed but reported; see "Who can change what" in the README.
 /src/content/
 /public/media/

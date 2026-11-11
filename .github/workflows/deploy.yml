@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      test_actor:
+        description: Test the guard only. GitHub user name to pretend made the last commits (nothing is undone).
+        required: false
+      test_base:
+        description: Test the guard only. Commit to compare from (default is the commit before the latest).
+        required: false
 
 permissions:
   contents: read
@@ -15,10 +22,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  guard:
+    # Undoes site-code changes pushed without an owner's approval, and reports changes to other
+    # people's entries to Discord. Runs before the build so an undone change is never published.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      reverted: ${{ steps.guard.outputs.reverted }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm ci
+      - id: guard
+        name: Check who changed what
+        run: node scripts/guard.mjs
+        env:
+          ACTOR: ${{ inputs.test_actor || github.actor }}
+          BASE: ${{ inputs.test_base || github.event.before || 'HEAD~1' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.test_actor != '' && '1' || '0' }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
+          DEVLOG_PEOPLE: ${{ vars.DEVLOG_PEOPLE }}
+
   build:
+    needs: guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}   # the branch tip, so anything the guard undid is left out
       - uses: actions/setup-node@v4
         with:
           node-version: 22
