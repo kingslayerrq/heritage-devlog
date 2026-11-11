@@ -1,0 +1,13 @@
+#!/bin/sh
+# Runs the entry checker before every push, so a broken entry is caught on your own machine.
+# Switched on by `npm install` (scripts/install-hooks.mjs). The same check runs again on GitHub.
+if [ ! -d node_modules ]; then
+  echo "Push stopped: run 'npm install' once in this folder, then push again."
+  exit 1
+fi
+echo "Checking entries before pushing..."
+if ! npm run --silent validate; then
+  echo
+  echo "Push stopped. Fix the errors above, commit the fixes, and push again."
+  exit 1
+fi

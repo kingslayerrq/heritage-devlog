@@ -1,0 +1,26 @@
+name: Check entries
+
+# Runs on every pull request, and on pushes to branches other than main, so a mistake in an
+# entry is reported before it can reach the live site. Nothing is published from here.
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm ci
+      - name: Check entries
+        run: npm run validate
+      - name: Build
+        run: npm run build

@@ -24,6 +24,8 @@ jobs:
           node-version: 22
       - name: Install
         run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Check entries
+        run: npm run validate
       - name: Build
         run: npm run build
         env:

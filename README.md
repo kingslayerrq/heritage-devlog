@@ -9,6 +9,15 @@ There are two ways to publish an entry, and they can be mixed freely:
 
 Either way, the result is a Markdown file under `src/content/posts/`. Pushing it to `main` is what publishes it.
 
+## The workflow at a glance
+
+1. Write the entry (a Markdown file, plus any pictures).
+2. `git push`. The checker runs on your machine and stops the push if something is wrong.
+3. GitHub runs the same check, builds the site and publishes it, in about two minutes.
+4. If a Discord webhook is set up, the new entry is announced in the channel once it is live.
+
+Entries go straight to `main`. Changes to the site itself go through a pull request. Details are in [Branches and pull requests](#branches-and-pull-requests).
+
 ## Publish an entry by hand
 
 1. **Get the repository and install once.**
@@ -18,6 +27,8 @@ Either way, the result is a Markdown file under `src/content/posts/`. Pushing it
    cd heritage-devlog
    npm install
    ```
+
+   `npm install` also switches on the automatic check that runs before every push. On later visits, start with `git pull` so you have everyone else's entries.
 
 2. **Make sure you have an author profile.** Each author is one file, `src/content/authors/<your-id>.json`. The file name (lowercase letters, digits and dashes, starting with a letter) is the id you sign entries with. Only `name` is required:
 
@@ -63,7 +74,13 @@ Either way, the result is a Markdown file under `src/content/posts/`. Pushing it
    npm run dev
    ```
 
-   Open the address it prints (it ends in `/heritage-devlog/`). Run `npm run build` before pushing if you want to be sure the entry builds.
+   Open the address it prints (it ends in `/heritage-devlog/`). To check the entry at any time:
+
+   ```sh
+   npm run validate
+   ```
+
+   It names the file and line of anything wrong. See [What the checker looks for](#what-the-checker-looks-for). You do not have to remember to run it: it runs by itself whenever you push.
 
 6. **Publish.**
 
@@ -73,9 +90,40 @@ Either way, the result is a Markdown file under `src/content/posts/`. Pushing it
    git push
    ```
 
-   The **Build and deploy** workflow (Actions tab) builds the site and publishes it, usually within two minutes. If a Discord webhook is configured, the entry is announced there once the site is live. If the build fails, the previous version of the site stays up; open the failed run to see which file and field was wrong.
+   The checker runs first, on your machine. If it finds an error the push is stopped and nothing leaves your computer: fix it, commit, push again.
+
+   If git refuses the push because someone else published in the meantime, run `git pull --rebase` and push again.
+
+   Once the push goes through, the **Build and deploy** workflow (Actions tab) runs the same checker, builds the site and publishes it, usually within two minutes. If a Discord webhook is configured, the entry is announced there once the site is live. If the check or the build fails, nothing is published and the previous version of the site stays up; open the failed run to see which file and line was wrong.
 
 To change or remove an entry, edit or delete its file and push again. Announcements are only sent for newly added entries.
+
+## Where the check runs
+
+| When | What happens on an error |
+| --- | --- |
+| `git push` from your machine (set up by `npm install`) | The push is stopped |
+| A push to `main` by any route, including edits made on github.com | The site is not rebuilt; the previous version stays up |
+| A pull request, or a push to another branch | The **Check entries** run fails and marks the problems on the files |
+
+The first is a convenience and can be skipped (`git push --no-verify`, or editing on github.com). The second cannot, and is what protects the live site.
+
+## Branches and pull requests
+
+- **Entries** (a Markdown file, its media, your author profile): push straight to `main`. The checks above are the review.
+- **Changes to the site itself** (anything under `src/` other than `content/`, plus `scripts/`, `.github/` and the config files): make a branch and open a pull request, so someone else looks before it affects every page.
+- **An entry you want a second opinion on**: a pull request works for that too. Mark the entry `draft: true` if it should be merged before it is ready to show.
+
+This is the team's convention; GitHub does not enforce it. To open a pull request:
+
+```sh
+git switch -c short-description
+git add .
+git commit -m "What changed"
+git push -u origin short-description
+```
+
+Then open the link git prints, create the pull request, and wait for **Check entries** to pass before merging. Merging into `main` publishes the change.
 
 ## What an entry can contain
 
@@ -94,6 +142,34 @@ Ordinary Markdown, plus a few blocks written as small tags. The sample entry "Ev
 | Note | `<hx-note>` or `<hx-note kind="clue">` around text |
 
 When a block wraps Markdown (gallery, build note, note), leave a blank line after the opening tag and before the closing tag.
+
+## What the checker looks for
+
+`npm run validate` (or `npm run validate -- src/content/posts/your-file.md` for one entry) reads every entry and author profile. Errors stop publication; warnings do not.
+
+| Errors | Warnings |
+| --- | --- |
+| File not named `YYYY-MM-DD-short-title.md` | Date differs from the date in the file name |
+| Front matter missing or not valid YAML | No `authors` (signed "The Heritage team") |
+| Missing `title`, `date` or `discipline`; a `discipline` not on the list | No `summary`, or one over 300 characters |
+| A misspelt or unknown field | Cover without `coverAlt` |
+| An author id with no profile file | SVG cover (Discord cannot show it) |
+| `visibility: internal` (this repository is public) | Entry marked `draft: true` |
+| A picture, clip, cover or avatar that is not in `public/` | Media approaching the 1 GB site limit |
+| An unknown, unclosed or incomplete `hx-` block; a code block never closed | |
+| A media file over 25 MB | |
+| An author profile with unknown fields, no `name`, or bad links | |
+
+## Discord announcements
+
+After a push to `main` has been deployed, the workflow posts one message per newly added public entry to a Discord channel, through a channel webhook. Edits and deletions are not announced, and neither are drafts.
+
+To switch it on:
+
+1. In Discord, open the channel's **Edit Channel → Integrations → Webhooks → New Webhook**. Give it the name and picture the announcements should appear under, and copy its URL.
+2. In this repository, open **Settings → Secrets and variables → Actions → New repository secret**. Name it `DISCORD_DEVLOG_WEBHOOK` and paste the URL.
+
+The URL is a password for posting to that channel: keep it only in that secret, never in a file. Use a repository secret, not an environment secret; the announce job does not run in an environment, so it could not read one. Without the secret the announce step does nothing and still passes.
 
 ## One-time repository setup
 
