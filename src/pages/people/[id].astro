@@ -1,0 +1,29 @@
+---
+import Base from '../../layouts/Base.astro';
+import Avatar from '../../components/Avatar.astro';
+import AuthorLinks from '../../components/AuthorLinks.astro';
+import Thread from '../../components/Thread.astro';
+import { allAuthors, publicPosts, url, type Author } from '../../lib/site';
+import { DISCIPLINES } from '../../lib/disciplines';
+
+export async function getStaticPaths() {
+  return (await allAuthors()).map(author => ({ params: { id: author.id }, props: { author } }));
+}
+
+interface Props { author: Author }
+const { author } = Astro.props;
+const posts = (await publicPosts()).filter(post => post.data.authors.includes(author.id));
+const craft = author.data.discipline && DISCIPLINES[author.data.discipline];
+---
+<Base title={author.data.name} description={author.data.bio ?? `Heritage journal entries by ${author.data.name}.`} image={author.data.avatar}>
+  <section class="frontispiece profile">
+    <p class="eyebrow"><a href={url('/people/')}>People</a></p>
+    <Avatar author={author} size="large" />
+    <h1>{author.data.name}</h1>
+    {author.data.role && <p class="profile-role">{author.data.role}</p>}
+    {craft && author.data.discipline && <a class="stamp" href={url(`/crafts/${author.data.discipline}/`)} style={`--craft:${craft.ink}`}>{craft.name}</a>}
+    {author.data.bio && <p class="lede">{author.data.bio}</p>}
+    <AuthorLinks author={author} />
+  </section>
+  <Thread posts={posts} />
+</Base>

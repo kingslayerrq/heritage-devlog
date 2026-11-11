@@ -1,0 +1,17 @@
+---
+import Base from '../layouts/Base.astro';
+import Thread from '../components/Thread.astro';
+import CraftChips from '../components/CraftChips.astro';
+import { publicPosts, SITE } from '../lib/site';
+const posts = await publicPosts();
+---
+<Base>
+  <section class="frontispiece">
+    <p class="eyebrow">A development journal</p>
+    <h1>{SITE.title}</h1>
+    <svg class="flourish" viewBox="0 0 240 24" aria-hidden="true"><path d="M2 12 C 40 2, 70 22, 120 12 S 200 2, 238 12" pathLength="1" /></svg>
+    <p class="lede">Every room in the house is a problem we had to solve. These are the notes we left on the way through.</p>
+    <CraftChips />
+  </section>
+  <Thread posts={posts} />
+</Base>

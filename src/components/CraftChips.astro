@@ -1,0 +1,14 @@
+---
+import { url } from '../lib/site';
+import { DISCIPLINES, DISCIPLINE_KEYS, type Discipline } from '../lib/disciplines';
+interface Props { current?: Discipline }
+const { current } = Astro.props;
+---
+<nav class="crafts" aria-label="Crafts">
+  <a class="chip" href={url('/')} aria-current={current ? undefined : 'page'}>All</a>
+  {DISCIPLINE_KEYS.map(key => (
+    <a class="chip" href={url(`/crafts/${key}/`)} style={`--craft:${DISCIPLINES[key].ink}`} aria-current={current === key ? 'page' : undefined}>
+      {DISCIPLINES[key].name}
+    </a>
+  ))}
+</nav>

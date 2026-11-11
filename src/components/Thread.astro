@@ -1,0 +1,38 @@
+---
+import Byline from './Byline.astro';
+import { url, longDate, tagSlug, entryNumber, postAuthors, transitionName, type Post } from '../lib/site';
+import { DISCIPLINES } from '../lib/disciplines';
+interface Props { posts: Post[] }
+const { posts } = Astro.props;
+const entries = await Promise.all(posts.map(async post => ({
+  post,
+  number: await entryNumber(post),
+  authors: await postAuthors(post),
+  craft: DISCIPLINES[post.data.discipline],
+})));
+---
+{entries.length === 0 && <p class="empty">Nothing has been written down yet.</p>}
+<ol class="thread">
+  {entries.map(({ post, number, authors, craft }) => (
+    <li class="entry" data-reveal>
+      <p class="entry-date">{longDate(post.data.date)}</p>
+      <article class="page" data-tilt style={`view-transition-name:${transitionName(post.id)}`}>
+        {post.data.cover && (
+          <a class="page-cover" href={url(`/posts/${post.id}/`)} tabindex="-1" aria-hidden="true">
+            <img src={url(post.data.cover)} alt="" loading="lazy" />
+          </a>
+        )}
+        <p class="page-top">
+          <span class="page-number">Entry {number}</span>
+          <a class="stamp" href={url(`/crafts/${post.data.discipline}/`)} style={`--craft:${craft.ink}`}>{craft.name}</a>
+        </p>
+        <h2><a href={url(`/posts/${post.id}/`)}>{post.data.title}</a></h2>
+        {post.data.summary && <p class="page-summary">{post.data.summary}</p>}
+        <p class="page-meta">
+          <Byline authors={authors} />
+          {post.data.tags.map(tag => <a class="tag" href={url(`/tags/${tagSlug(tag)}/`)}>{tag}</a>)}
+        </p>
+      </article>
+    </li>
+  ))}
+</ol>

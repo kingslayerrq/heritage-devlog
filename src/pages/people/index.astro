@@ -1,0 +1,33 @@
+---
+import Base from '../../layouts/Base.astro';
+import Avatar from '../../components/Avatar.astro';
+import { allAuthors, publicPosts, url } from '../../lib/site';
+import { DISCIPLINES } from '../../lib/disciplines';
+const posts = await publicPosts();
+const people = (await allAuthors()).map(author => ({
+  author,
+  count: posts.filter(post => post.data.authors.includes(author.id)).length,
+}));
+---
+<Base title="People" description="The people who write the Heritage journal.">
+  <section class="frontispiece">
+    <p class="eyebrow">The household</p>
+    <h1>People</h1>
+    <p class="lede">The hands these pages are written in.</p>
+  </section>
+  <ul class="people">
+    {people.map(({ author, count }) => (
+      <li data-reveal>
+        <a class="page person" data-tilt href={url(`/people/${author.id}/`)}>
+          <Avatar author={author} size="large" />
+          <span class="person-name">{author.data.name}</span>
+          {author.data.role && <span class="person-role">{author.data.role}</span>}
+          <span class="person-foot">
+            {author.data.discipline && <span class="stamp" style={`--craft:${DISCIPLINES[author.data.discipline].ink}`}>{DISCIPLINES[author.data.discipline].name}</span>}
+            <span class="hand">{count} {count === 1 ? 'entry' : 'entries'}</span>
+          </span>
+        </a>
+      </li>
+    ))}
+  </ul>
+</Base>

@@ -1,0 +1,25 @@
+---
+import Base from '../../layouts/Base.astro';
+import Thread from '../../components/Thread.astro';
+import CraftChips from '../../components/CraftChips.astro';
+import { publicPosts } from '../../lib/site';
+import { DISCIPLINES, DISCIPLINE_KEYS, type Discipline } from '../../lib/disciplines';
+
+// Every discipline gets a page, even an empty one, so the chips never lead nowhere.
+export function getStaticPaths() {
+  return DISCIPLINE_KEYS.map(craft => ({ params: { craft } }));
+}
+
+const key = Astro.params.craft as Discipline;
+const craft = DISCIPLINES[key];
+const posts = (await publicPosts()).filter(post => post.data.discipline === key);
+---
+<Base title={craft.name} description={`Heritage journal entries about ${craft.name.toLowerCase()}. ${craft.blurb}`}>
+  <section class="frontispiece" style={`--craft:${craft.ink}`}>
+    <p class="eyebrow">Craft</p>
+    <h1 class="craft-title">{craft.name}</h1>
+    <p class="lede">{craft.blurb}</p>
+    <CraftChips current={key} />
+  </section>
+  <Thread posts={posts} />
+</Base>

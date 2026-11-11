@@ -1,0 +1,59 @@
+---
+import 'katex/dist/katex.min.css';
+import '../styles/global.css';
+import { SITE, url } from '../lib/site';
+
+interface Props { title?: string; description?: string; image?: string }
+const { title, description = SITE.description, image } = Astro.props;
+const pageTitle = title ? `${title} · ${SITE.title}` : `${SITE.title} · a development journal`;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={title ? 'article' : 'website'} />
+    {image && <meta property="og:image" content={new URL(url(image), Astro.site)} />}
+    <link rel="alternate" type="application/feed+json" title={SITE.title} href={url('/feed.json')} />
+    <link rel="alternate" type="application/rss+xml" title={SITE.title} href={url('/rss.xml')} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Homemade+Apple&family=Noto+Serif+SC:wght@400;600&display=swap" />
+    <!-- Marks the page as script-capable so scroll reveals can start hidden; undone if the motion script never loads. -->
+    <script is:inline>
+      document.documentElement.classList.add('js');
+      setTimeout(function () { if (!window.__motion) document.documentElement.classList.remove('js'); }, 2500);
+    </script>
+  </head>
+  <body>
+    <header class="masthead">
+      <a class="masthead-home" href={url('/')}>
+        <span class="masthead-title">{SITE.title}</span>
+        <span class="masthead-tagline">{SITE.tagline}</span>
+      </a>
+      <nav aria-label="Site">
+        <a href={url('/')}>Journal</a>
+        <a href={url('/tags/')}>Rooms</a>
+        <a href={url('/people/')}>People</a>
+      </nav>
+    </header>
+    <main><slot /></main>
+    <footer class="colophon">
+      <p>{SITE.title} is a game in development. These pages are kept by the people building it.</p>
+      <p class="colophon-links">
+        <a href={url('/rss.xml')}>Subscribe by RSS</a>
+        {SITE.discordInvite && <a href={SITE.discordInvite} rel="noopener">Join the Discord</a>}
+      </p>
+    </footer>
+    <script>
+      import '../scripts/motion.js';
+      import '../scripts/blocks.js';
+    </script>
+  </body>
+</html>

@@ -1,0 +1,25 @@
+---
+import Base from '../../layouts/Base.astro';
+import Thread from '../../components/Thread.astro';
+import { publicPosts, url, tagSlug, type Post } from '../../lib/site';
+
+export async function getStaticPaths() {
+  const groups = new Map<string, { name: string; posts: Post[] }>();
+  for (const post of await publicPosts()) for (const tag of post.data.tags) {
+    const slug = tagSlug(tag);
+    if (!groups.has(slug)) groups.set(slug, { name: tag, posts: [] });
+    groups.get(slug)!.posts.push(post);
+  }
+  return [...groups].map(([tag, group]) => ({ params: { tag }, props: group }));
+}
+
+interface Props { name: string; posts: Post[] }
+const { name, posts } = Astro.props;
+---
+<Base title={name} description={`Heritage journal entries about ${name}.`}>
+  <section class="frontispiece">
+    <p class="eyebrow"><a href={url('/tags/')}>Rooms</a></p>
+    <h1>{name}</h1>
+  </section>
+  <Thread posts={posts} />
+</Base>

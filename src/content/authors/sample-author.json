@@ -1,0 +1,10 @@
+{
+  "name": "Sample Author",
+  "role": "Environment artist (placeholder)",
+  "discipline": "art",
+  "bio": "A placeholder profile showing what an author page looks like. Delete this file once real authors exist.",
+  "links": [
+    { "label": "Portfolio", "url": "https://example.com/portfolio" },
+    { "label": "GitHub", "url": "https://example.com/github" }
+  ]
+}

@@ -1,0 +1,61 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Avatar from '../../components/Avatar.astro';
+import AuthorLinks from '../../components/AuthorLinks.astro';
+import Byline from '../../components/Byline.astro';
+import { publicPosts, postAuthors, url, longDate, tagSlug, transitionName, type Post } from '../../lib/site';
+import { DISCIPLINES } from '../../lib/disciplines';
+
+export async function getStaticPaths() {
+  const posts = await publicPosts();
+  return posts.map((post, index) => ({
+    params: { slug: post.id },
+    props: { post, number: posts.length - index, newer: posts[index - 1], older: posts[index + 1] },
+  }));
+}
+
+interface Props { post: Post; number: number; newer?: Post; older?: Post }
+const { post, number, newer, older } = Astro.props;
+const { Content } = await render(post);
+const authors = await postAuthors(post);
+const craft = DISCIPLINES[post.data.discipline];
+---
+<Base title={post.data.title} description={post.data.summary} image={post.data.cover}>
+  <article class="letter" style={`view-transition-name:${transitionName(post.id)}`}>
+    <header class="letter-head">
+      <p class="eyebrow">Entry {number} · <time datetime={post.data.date.toISOString()}>{longDate(post.data.date)}</time></p>
+      <h1>{post.data.title}</h1>
+      {post.data.summary && <p class="lede">{post.data.summary}</p>}
+      <p class="letter-by">
+        <a class="stamp" href={url(`/crafts/${post.data.discipline}/`)} style={`--craft:${craft.ink}`}>{craft.name}</a>
+        <span>written by</span> <Byline authors={authors} />
+      </p>
+    </header>
+    {post.data.cover && (
+      <figure class="letter-cover"><img src={url(post.data.cover)} alt={post.data.coverAlt ?? ''} /></figure>
+    )}
+    <div class="prose"><Content /></div>
+    {post.data.tags.length > 0 && (
+      <p class="letter-tags">Filed under {post.data.tags.map(tag => <a class="tag" href={url(`/tags/${tagSlug(tag)}/`)}>{tag}</a>)}</p>
+    )}
+    {authors.length > 0 && (
+      <section class="hands" aria-label="About the authors">
+        {authors.map(author => (
+          <div class="hands-card" data-reveal>
+            <a href={url(`/people/${author.id}/`)} tabindex="-1" aria-hidden="true"><Avatar author={author} size="large" /></a>
+            <div>
+              <p class="hands-name"><a href={url(`/people/${author.id}/`)}>{author.data.name}</a></p>
+              {author.data.role && <p class="hands-role">{author.data.role}</p>}
+              <AuthorLinks author={author} />
+            </div>
+          </div>
+        ))}
+      </section>
+    )}
+  </article>
+  <nav class="turn" aria-label="More entries">
+    {older ? <a rel="prev" href={url(`/posts/${older.id}/`)}><span>Earlier</span>{older.data.title}</a> : <span />}
+    {newer ? <a rel="next" href={url(`/posts/${newer.id}/`)}><span>Later</span>{newer.data.title}</a> : <span />}
+  </nav>
+</Base>

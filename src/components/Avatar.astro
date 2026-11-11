@@ -1,0 +1,8 @@
+---
+import { url, type Author } from '../lib/site';
+interface Props { author: Author; size?: 'small' | 'large' }
+const { author, size = 'small' } = Astro.props;
+---
+{author.data.avatar
+  ? <img class:list={['avatar', size]} src={url(author.data.avatar)} alt="" loading="lazy" />
+  : <span class:list={['avatar', 'seal', size]} aria-hidden="true">{[...author.data.name][0]}</span>}

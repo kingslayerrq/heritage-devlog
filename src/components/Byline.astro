@@ -1,0 +1,15 @@
+---
+import Avatar from './Avatar.astro';
+import { url, type Author } from '../lib/site';
+interface Props { authors: Author[] }
+const { authors } = Astro.props;
+---
+<span class="byline">
+  {authors.length === 0 && <span class="hand">The Heritage team</span>}
+  {authors.map(author => (
+    <a class="by" href={url(`/people/${author.id}/`)}>
+      <Avatar author={author} />
+      <span class="hand">{author.data.name}</span>
+    </a>
+  ))}
+</span>

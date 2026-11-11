@@ -1,0 +1,10 @@
+---
+import { authorLinks, type Author } from '../lib/site';
+interface Props { author: Author }
+const links = authorLinks(Astro.props.author);
+---
+{links.length > 0 && (
+  <ul class="author-links">
+    {links.map(link => <li><a href={link.url} rel="me noopener">{link.label}</a></li>)}
+  </ul>
+)}

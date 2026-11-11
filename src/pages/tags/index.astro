@@ -1,0 +1,22 @@
+---
+import Base from '../../layouts/Base.astro';
+import { publicPosts, url, tagSlug } from '../../lib/site';
+const counts = new Map<string, { name: string; count: number }>();
+for (const post of await publicPosts()) for (const tag of post.data.tags) {
+  const slug = tagSlug(tag);
+  counts.set(slug, { name: counts.get(slug)?.name ?? tag, count: (counts.get(slug)?.count ?? 0) + 1 });
+}
+const tags = [...counts].sort((a, b) => a[1].name.localeCompare(b[1].name));
+---
+<Base title="Rooms" description="Every topic in the Heritage journal.">
+  <section class="frontispiece">
+    <p class="eyebrow">The floor plan</p>
+    <h1>Rooms</h1>
+    <p class="lede">Entries, sorted by the part of the house they belong to.</p>
+  </section>
+  <ul class="rooms">
+    {tags.map(([slug, tag]) => (
+      <li data-reveal><a href={url(`/tags/${slug}/`)}>{tag.name}</a><span class="hand">{tag.count} {tag.count === 1 ? 'entry' : 'entries'}</span></li>
+    ))}
+  </ul>
+</Base>
