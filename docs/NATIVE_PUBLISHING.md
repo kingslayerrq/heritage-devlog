@@ -138,6 +138,8 @@ eligibility, new coauthor eligibility, and required protection before merging th
 exact head. GitHub's strict required checks close the race if main advances during
 the final API call. The App merge triggers the normal main push/deploy workflow.
 
+Main deployment retries the read-only commit-to-PR lookup within a 30-second budget because GitHub can briefly omit a just-merged association. Each candidate is checked against the full merged PR receipt, exact squash SHA, original head, repository and main branch. A missing receipt still fails closed for an automation push; no merge or publish operation is retried by this lookup. If indexing takes longer, rerun the failed deployment after GitHub exposes the receipt.
+
 Main deployment builds the event SHA, not a mutable branch tip. Immediately before
 Pages promotion, it checks that the revision is still main; replaying an older run
 cannot roll the site backward. Successful reports compare against the previous

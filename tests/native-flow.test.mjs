@@ -39,7 +39,7 @@ test('fixture pipeline rejects invalid content, publishes a corrected branch, th
     const commit = text => { writeFileSync(path, text); git('add', path); git('commit', '-m', 'fixture content'); head = git('rev-parse', 'HEAD'); };
     const eventFile = join(fixture, 'request.json');
     const events = [], checks = [], receipts = new Map();
-    const pull = () => ({ number: 1, state: pullOpen ? 'open' : 'closed', draft: false, head: { sha: head, ref: branch, repo: { full_name: repo } }, base: { ref: 'main', sha: main }, ...(mergedPull || {}) });
+    const pull = () => ({ number: 1, state: pullOpen ? 'open' : 'closed', draft: false, head: { sha: head, ref: branch, repo: { full_name: repo } }, base: { ref: 'main', sha: main, repo: { full_name: repo } }, ...(mergedPull || {}) });
     const result = (data, status = 200) => new Response(JSON.stringify(data), { status });
     globalThis.fetch = async (input, options = {}) => {
       const url = new URL(input);
