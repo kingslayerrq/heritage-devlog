@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
@@ -11,21 +11,21 @@ test('fixture pipeline rejects invalid content, publishes a corrected branch, th
   const fixture = mkdtempSync(join(tmpdir(), 'heritage-native-flow-'));
   const originalCwd = process.cwd(), originalFetch = globalThis.fetch, originalEnv = { ...process.env };
   const ignored = new Set(['.git', 'node_modules', '.astro', 'dist', '.native', 'tests']);
-  const authorDirectory = join(source, 'src', 'content', 'authors');
+  // Copy trusted site code, never live articles, identity snapshots or author media.
+  const authoredDirectories = new Set([join(source, 'src', 'content', 'posts'), join(source, 'src', 'content', 'authors'), join(source, 'public', 'media')]);
   try {
     for (const entry of readdirSync(source, { withFileTypes: true })) {
       if (ignored.has(entry.name) || entry.name.startsWith('.env') || entry.name.endsWith('.log')) continue;
       cpSync(join(source, entry.name), join(fixture, entry.name), {
         recursive: true,
-        // Use only demo profiles; local sync:authors caches are unrelated to this test's registry.
-        filter: path => dirname(path) !== authorDirectory || ['heritage-team.json', 'sample-author.json'].includes(basename(path)),
+        filter: path => !authoredDirectories.has(path),
       });
     }
     process.chdir(fixture);
     const git = (...args) => execFileSync('git', args, { cwd: fixture, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
     git('init', '-b', 'main'); git('config', 'user.name', 'Fixture'); git('config', 'user.email', 'fixture@example.invalid');
     git('config', 'core.autocrlf', 'false'); git('config', 'core.hooksPath', '/dev/null'); git('remote', 'add', 'origin', fixture);
-    git('add', '.'); git('add', '-f', 'src/content/authors/heritage-team.json', 'src/content/authors/sample-author.json'); git('commit', '-m', 'trusted site fixture');
+    git('add', '.'); git('commit', '-m', 'trusted site fixture');
     let main = git('rev-parse', 'HEAD'), previous = main, head, mergedPull, pullOpen = false, checkId = 0;
     const repo = 'kingslayerrq/heritage-devlog', branch = 'devlog/fixture';
     git('switch', '-c', branch);
@@ -36,7 +36,7 @@ test('fixture pipeline rejects invalid content, publishes a corrected branch, th
       { author: 'fixture-owner', discord: '323456789012345678', github: 'kingslayerrq', githubId: 22969898, name: 'Owner', active: true },
     ];
     const validPost = text => '---\ntitle: 测试日志\ndate: 2026-11-11\ndiscipline: tech\nauthors: [fixture-writer, fixture-artist]\nsummary: 本地端到端测试\ntags: [测试]\n---\n\n' + text + '\n';
-    const commit = text => { writeFileSync(path, text); git('add', path); git('commit', '-m', 'fixture content'); head = git('rev-parse', 'HEAD'); };
+    const commit = text => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text); git('add', path); git('commit', '-m', 'fixture content'); head = git('rev-parse', 'HEAD'); };
     const eventFile = join(fixture, 'request.json');
     const events = [], checks = [], receipts = new Map();
     const pull = () => ({ number: 1, state: pullOpen ? 'open' : 'closed', draft: false, head: { sha: head, ref: branch, repo: { full_name: repo } }, base: { ref: 'main', sha: main, repo: { full_name: repo } }, ...(mergedPull || {}) });
