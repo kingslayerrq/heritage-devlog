@@ -4,12 +4,12 @@ import { localizeReportIssue } from './report-localization.mjs';
 const text = (value, max = 800) => String(value ?? '').replace(/[\u0000-\u001f]/g, ' ').replace(/@/g, '@\u200b').slice(0, max);
 const markdown = (value, max) => text(value, max).replace(/[\\\x60*_~|<>\[\]]/g, '\\$&');
 const labels = {
-  validation: ['\u{1F534} 内容检查未通过', 0xe74c3c],
-  warning: ['\u{1F7E1} 内容检查提醒', 0xf1c40f],
-  policy: ['\u{1F534} 修改范围不允许', 0xe74c3c],
-  publish: ['\u{1F7E2} 开发日志已发布', 0x2ecc71],
-  edit: ['\u{1F535} 开发日志已更新', 0x3498db],
-  deployment: ['\u{1F534} 发布流程失败', 0xe74c3c],
+  validation: ['❌ 内容检查未通过', 0xe74c3c],
+  warning: ['⚠️ 内容检查提醒', 0xf1c40f],
+  policy: ['🔒 修改范围不允许', 0xe74c3c],
+  publish: ['🚀 开发日志已发布', 0x2ecc71],
+  edit: ['📝 开发日志已更新', 0x3498db],
+  deployment: ['💥 发布流程失败', 0xe74c3c],
 };
 export function reportRecipients({ people, actorId, actorAuthor, authors = [], owner = false }) {
   const ids = new Set();
