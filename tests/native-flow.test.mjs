@@ -57,6 +57,12 @@ test('fixture pipeline rejects invalid content, publishes a corrected branch, th
       if (route === '/actions/runs/1') return result({ event: 'push', path: '.github/workflows/check.yml', repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: branch, head_sha: head, actor: { id: 123, login: 'fixture-writer' } });
       if (route === '/actions/runs') return result({ workflow_runs: [{ event: 'push', path: '.github/workflows/check.yml', repository: { id: 1 }, head_repository: { id: 1 }, head_branch: branch, head_sha: head, actor: { id: 123, login: 'fixture-writer' } }] });
       if (route.startsWith('/git/ref/heads/')) return result({ object: { sha: decodeURIComponent(route) === '/git/ref/heads/main' ? main : head } });
+      if (route.startsWith('/compare/')) {
+        const [comparisonBase, comparisonHead] = route.slice('/compare/'.length).split('...');
+        const ahead = Number(git('rev-list', '--count', comparisonBase + '..' + comparisonHead));
+        const behind = Number(git('rev-list', '--count', comparisonHead + '..' + comparisonBase));
+        return result({ status: ahead ? behind ? 'diverged' : 'ahead' : behind ? 'behind' : 'identical' });
+      }
       if (route === '/pulls' && options.method === 'POST') { pullOpen = true; mergedPull = undefined; return result(pull(), 201); }
       if (route === '/pulls') return result(pullOpen ? [pull()] : []);
       if (route === '/pulls/1') return result(pull());
@@ -92,6 +98,12 @@ test('fixture pipeline rejects invalid content, publishes a corrected branch, th
       git('switch', 'main');
       await pipeline.prepare();
     };
+    // A retained release branch can equal main without having a PR; it is a harmless no-op.
+    head = main;
+    await request();
+    assert.equal(pullOpen, false); assert.equal(checkId, 0); assert.equal(events.length, 0);
+    assert.ok(readFileSync(process.env.GITHUB_OUTPUT, 'utf8').includes('accepted=false'));
+    git('switch', branch);
     commit(validPost('尚未发布。').replace('authors: [fixture-writer, fixture-artist]', 'authors: 17'));
     await request();
     pipeline.build({ stdio: 'pipe' });

@@ -8,7 +8,8 @@ export const reportKey = (...parts) => createHash('sha256').update(JSON.stringif
 export function createGithub({ token = process.env.DEVLOG_APP_TOKEN, repo = process.env.GITHUB_REPOSITORY, fetch = globalThis.fetch } = {}) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo || '') || !token) throw new Error('GitHub repository and App token are required.');
   const api = async (method, path, body) => {
-    if (!path.startsWith('/') || path.includes('..')) throw new Error('Invalid GitHub API path.');
+    const shaComparison = /^\/compare\/[a-f0-9]{40}\.\.\.[a-f0-9]{40}\?per_page=1$/.test(path);
+    if (!path.startsWith('/') || (path.includes('..') && !shaComparison)) throw new Error('Invalid GitHub API path.');
     const response = await fetch(`https://api.github.com/repos/${repo}${path}`, {
       method, headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(20000),

@@ -75,6 +75,14 @@ async function check(api, context, conclusion, issues = []) {
 export function resolvedHead(pulls, head) {
   return pulls.some(pull => pull.state === 'closed' && pull.head?.sha === head);
 }
+export async function hasUnmergedCommits(api, base, head) {
+  if (![base, head].every(value => shaPattern.test(value || ''))) throw new Error('Invalid branch comparison revision.');
+  if (base === head) return false;
+  const comparison = await api('GET', '/compare/' + base + '...' + head + '?per_page=1');
+  if (['identical', 'behind'].includes(comparison.status)) return false;
+  if (['ahead', 'diverged'].includes(comparison.status)) return true;
+  throw new Error('GitHub returned an unknown branch comparison status.');
+}
 export async function prepare() {
   const { api, repo } = createGithub(), source = event();
   let request;
@@ -92,6 +100,7 @@ export async function prepare() {
   const base = git('rev-parse', 'HEAD');
   const main = await api('GET', '/git/ref/heads/main');
   if (base !== main.object.sha) throw new Error('Trusted main changed during setup. Rerun this request.');
+  if (!await hasUnmergedCommits(api, base, request.head)) { output('accepted', 'false'); console.log('This branch is already contained in main; no publication is needed.'); return; }
   fetchRevision(request.head);
   const people = requirePeople((await createIntegration()({ action: 'people' })).people);
   const pulls = await api('GET', '/pulls?state=all&base=main&head=' + encodeURIComponent(repo.split('/')[0] + ':' + request.branch) + '&per_page=100');
@@ -260,8 +269,7 @@ export async function reportDeployment() {
 
 
 /** Fallback for pushes whose branch request workflow was accidentally removed or renamed. */
-export async function reconcile() {
-  const { api, repo } = createGithub();
+export async function reconcile({ api, repo } = createGithub()) {
   if (process.env.GITHUB_REF !== 'refs/heads/main') throw new Error('Reconciliation runs only on main.');
   const main = await api('GET', '/git/ref/heads/main');
   let dispatched = 0;
@@ -269,6 +277,7 @@ export async function reconcile() {
     const branches = await api('GET', '/branches?per_page=100&page=' + page);
     for (const branch of branches) {
       if (branch.name === 'main' || !shaPattern.test(branch.commit?.sha || '')) continue;
+      if (!await hasUnmergedCommits(api, main.object.sha, branch.commit.sha)) continue;
       const pulls = await api('GET', '/pulls?state=all&base=main&head=' + encodeURIComponent(repo.split('/')[0] + ':' + branch.name) + '&per_page=100');
       if (resolvedHead(pulls, branch.commit.sha)) continue;
       const checks = await api('GET', '/commits/' + branch.commit.sha + '/check-runs?check_name=' + encodeURIComponent(CHECK_NAME) + '&per_page=100');

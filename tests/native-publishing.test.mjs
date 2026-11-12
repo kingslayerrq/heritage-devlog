@@ -5,9 +5,9 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { OWNER_ID, CHECK_NAME, requirePeople, verifiedActor } from '../scripts/native-api.mjs';
+import { OWNER_ID, CHECK_NAME, requirePeople, verifiedActor, createGithub } from '../scripts/native-api.mjs';
 import { policyIssues, safePath, materializeProject, changedPosts } from '../scripts/native-git.mjs';
-import { assertMergeCurrent, protectionReady, validateSourceRun, actorForHead, previousDeployment, deploymentIsCurrent, resolvedHead } from '../scripts/native-pipeline.mjs';
+import { assertMergeCurrent, protectionReady, validateSourceRun, actorForHead, previousDeployment, deploymentIsCurrent, resolvedHead, hasUnmergedCommits, reconcile } from '../scripts/native-pipeline.mjs';
 import { makeReport, deliverReport, reportRecipients } from '../scripts/report-discord.mjs';
 
 const head = 'a'.repeat(40), base = 'b'.repeat(40), repo = 'kingslayerrq/heritage-devlog';
@@ -255,4 +255,60 @@ test('scheduled reconciliation token can inspect resolved PRs before dispatching
   assert.equal(token.with['permission-contents'], 'read');
   assert.equal(token.with['permission-checks'], 'read');
   assert.equal(token.with['permission-actions'], 'write');
+});
+
+
+test('contained branches are skipped while ahead and diverged branches still need validation', async () => {
+  let requests = 0;
+  assert.equal(await hasUnmergedCommits(async () => { requests++; }, head, head), false);
+  assert.equal(requests, 0);
+  for (const status of ['identical', 'behind', 'ahead', 'diverged']) {
+    const api = async (method, path) => {
+      assert.equal(method, 'GET'); assert.equal(path, '/compare/' + base + '...' + head + '?per_page=1');
+      return { status };
+    };
+    assert.equal(await hasUnmergedCommits(api, base, head), ['ahead', 'diverged'].includes(status));
+  }
+  await assert.rejects(hasUnmergedCommits(async () => ({ status: 'unknown' }), base, head), /unknown/);
+});
+
+test('reconciliation ignores contained branches without creating PRs or dispatching redundant checks', async () => {
+  const previousRef = process.env.GITHUB_REF;
+  process.env.GITHUB_REF = 'refs/heads/main';
+  const behind = 'c'.repeat(40), ahead = 'd'.repeat(40), diverged = 'e'.repeat(40), dispatched = [];
+  try {
+    const api = async (method, path, body) => {
+      if (path === '/git/ref/heads/main') return { object: { sha: base } };
+      if (path.startsWith('/branches?')) return [
+        { name: 'main', commit: { sha: base } }, { name: 'release', commit: { sha: base } },
+        { name: 'old', commit: { sha: behind } }, { name: 'new', commit: { sha: ahead } }, { name: 'stale', commit: { sha: diverged } },
+      ];
+      if (path.startsWith('/compare/')) return { status: path.includes(behind) ? 'behind' : path.includes(ahead) ? 'ahead' : 'diverged' };
+      if (path.startsWith('/pulls?')) {
+        assert.ok(!path.includes(encodeURIComponent('kingslayerrq:release')) && !path.includes(encodeURIComponent('kingslayerrq:old')));
+        return [];
+      }
+      if (path.startsWith('/commits/')) return { check_runs: [] };
+      assert.equal(method, 'POST'); assert.equal(path, '/actions/workflows/native.yml/dispatches');
+      dispatched.push(body.inputs.branch);
+    };
+    await reconcile({ api, repo });
+    assert.deepEqual(dispatched, ['new', 'stale']);
+  } finally {
+    if (previousRef === undefined) delete process.env.GITHUB_REF; else process.env.GITHUB_REF = previousRef;
+  }
+});
+
+
+test('GitHub client permits full-SHA comparisons while retaining traversal rejection', async () => {
+  const requests = [];
+  const { api } = createGithub({ repo, token: 'fixture-token', fetch: async url => {
+    requests.push(url); return Response.json({ status: 'behind' });
+  } });
+  assert.equal(await hasUnmergedCommits(api, base, head), false);
+  assert.equal(requests[0], 'https://api.github.com/repos/' + repo + '/compare/' + base + '...' + head + '?per_page=1');
+  for (const path of ['/../other', '/compare/../../other', '/compare/main...feature', '/compare/' + base + '...' + head + '/../other']) {
+    await assert.rejects(api('GET', path), /Invalid GitHub API path/);
+  }
+  assert.equal(requests.length, 1);
 });

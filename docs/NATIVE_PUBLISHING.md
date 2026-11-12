@@ -141,6 +141,9 @@ repository PushEvent head/ref. If neither exists, it rejects the unknown actor a
 reports to the registered owner. Schedules can be delayed by GitHub; a manual
 `Native devlog publishing` dispatch on main with the branch name is the retry path.
 Schedules do not introduce an approval requirement.
+Branches already contained in main (identical or behind) are skipped by both
+reconciliation and manual requests, even without a previous PR. Keeping a release
+branch therefore does not create empty PRs or repeated setup-error reports.
 
 ## Discord reports and recovery
 
