@@ -11,6 +11,15 @@ const people = [{ author: 'writer', discord: '123456789012345678', name: 'Englis
 const report = extra => makeReport({ repo, revision, kind: 'validation', actorId: 0, actorAuthor: 'writer', actorLogin: people[0].name, people, authors: ['writer'], title: 'Original English Title', summary: 'The original English article summary.', sourceUrl: page, runId: 123, ...extra });
 const details = payload => payload.embeds[0].fields.find(field => field.name.startsWith('❌') || field.name.startsWith('⚠️')).value;
 
+test('report titles pair semantic symbols with Chinese result labels', () => {
+  for (const [kind, label] of Object.entries({
+    validation: '❌ 内容检查未通过', warning: '⚠️ 内容检查提醒', policy: '🔒 修改范围不允许',
+    publish: '🚀 开发日志已发布', edit: '📝 开发日志已更新', deployment: '💥 发布流程失败',
+  })) {
+    assert.equal(report({ kind }).embeds[0].title, label + ' · Original English Title');
+  }
+});
+
 test('all report kinds preserve authored text and identities while localizing generated explanations', () => {
   for (const kind of ['validation', 'warning', 'policy', 'deployment', 'publish', 'edit']) {
     const payload = report({ kind, issues: [{ severity: kind === 'warning' ? 'warning' : 'error', code: 'notion.empty', path, line: 7,
