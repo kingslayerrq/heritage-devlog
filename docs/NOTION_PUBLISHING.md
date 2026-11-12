@@ -52,9 +52,10 @@ The bot setup, database schema and private environment settings are documented i
 
 - Homepage, if requested: `https://kingslayerrq.github.io/heritage-devlog/`
 - Exact redirect: `https://dispatch.kingslayerrq.me/api/devlog-notion/callback`
-- Bot private environment: `DEVLOG_NOTION_CLIENT_ID`, `DEVLOG_NOTION_CLIENT_SECRET`, `DEVLOG_NOTION_WORKSPACE_ID`, `DEVLOG_NOTION_DATA_SOURCE_ID`, `DEVLOG_NOTION_ENABLED`.
-- The configured source is a **data-source ID**, not the database's page ID.
-- The owner runs `/devlog-access connect-notion` and grants the connection access to the database. Only this explicit owner installation saves an encrypted workspace credential. Ordinary linking discards its OAuth tokens.
+- Bot private environment: `DEVLOG_NOTION_CLIENT_ID`, `DEVLOG_NOTION_CLIENT_SECRET`, `DEVLOG_NOTION_DATABASE_ID`, `DEVLOG_NOTION_ENABLED`. The database ID comes from the database link; a containing page or view ID is not a database ID.
+- With database-based setup, leave `DEVLOG_NOTION_WORKSPACE_ID` and `DEVLOG_NOTION_DATA_SOURCE_ID` blank. Owner OAuth verifies the exact configured database and discovers its workspace and single data source. If the database has multiple sources, explicitly select a data-source ID. Supplied workspace/source values remain restrictions.
+- The original explicit-ID setup is also supported: leave the database ID blank and provide both workspace and data-source IDs. These IDs are different; use the database settings under Manage data sources to copy the source ID.
+- The owner runs `/devlog-access connect-notion` and grants the connection access to the database. Only this explicit owner installation saves an encrypted workspace credential. Ordinary linking discards its OAuth tokens. Members cannot link or publish until database setup succeeds. Changing the configured database invalidates the prior installation for that target; reconnect as owner before importing from the new destination.
 - Keep the shared `DEVLOG_INTEGRATION_TOKEN` private and backed up. It also derives the workspace credential encryption key; rotation requires reconnecting Notion.
 - No Notion token or OAuth secret belongs in this GitHub repository or its Actions environments. The workflow uses the existing machine integration credential to fetch a verified snapshot.
 
