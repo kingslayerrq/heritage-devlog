@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
@@ -11,10 +11,15 @@ test('fixture pipeline rejects invalid content, publishes a corrected branch, th
   const fixture = mkdtempSync(join(tmpdir(), 'heritage-native-flow-'));
   const originalCwd = process.cwd(), originalFetch = globalThis.fetch, originalEnv = { ...process.env };
   const ignored = new Set(['.git', 'node_modules', '.astro', 'dist', '.native', 'tests']);
+  const authorDirectory = join(source, 'src', 'content', 'authors');
   try {
     for (const entry of readdirSync(source, { withFileTypes: true })) {
       if (ignored.has(entry.name) || entry.name.startsWith('.env') || entry.name.endsWith('.log')) continue;
-      cpSync(join(source, entry.name), join(fixture, entry.name), { recursive: true });
+      cpSync(join(source, entry.name), join(fixture, entry.name), {
+        recursive: true,
+        // Use only demo profiles; local sync:authors caches are unrelated to this test's registry.
+        filter: path => dirname(path) !== authorDirectory || ['heritage-team.json', 'sample-author.json'].includes(basename(path)),
+      });
     }
     process.chdir(fixture);
     const git = (...args) => execFileSync('git', args, { cwd: fixture, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();

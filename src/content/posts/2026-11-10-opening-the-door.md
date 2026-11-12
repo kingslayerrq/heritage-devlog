@@ -11,7 +11,7 @@ coverAlt: Placeholder drawing of a house
 
 Heritage is a puzzle game about walking through an old mansion and working out what happened to the people who lived there. This journal is where we write down how it is being built: the rooms, the puzzles, the things that broke, and the things we changed our minds about.
 
-Entries are written by the team in a small editor that opens from our Discord server. When one is published it appears here, and the server hears about it.
+The team writes entries in English as Markdown files and submits them through GitHub. Authors link their accounts through Discord, which also receives publication and update reports.
 
 ---
 

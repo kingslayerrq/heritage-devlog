@@ -8,11 +8,11 @@ tags: [Journal, Tools]
 cover: /media/sample/study.svg
 ---
 
-This entry is a reference. Each section below shows one kind of block, written the way the editor saves it. All pictures here are placeholders.
+This entry is a reference. Each section below shows one kind of block, written directly in Markdown. All pictures here are placeholders.
 
 ## Text
 
-Ordinary Markdown works: **bold**, *italic*, ~~struck~~, `inline code`, [links](https://example.com), and a little Chinese where it is useful, 例如这样。
+Ordinary Markdown works: **bold**, *italic*, ~~struck~~, `inline code`, and [links](https://example.com).
 
 > Quotations are set like this, for lines of dialogue or notes from a playtest.
 

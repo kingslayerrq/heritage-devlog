@@ -1,17 +1,25 @@
 # Heritage devlog
 
-Heritage 的公开开发日志。作者通过 Discord 登记身份，用 Git 分支提交 Markdown；通过检查的内容自动合并并发布到 GitHub Pages。Notion 接入留到这条流程完成真实团队测试之后。
+The public development journal for Heritage. Authors register through Discord and submit Markdown through Git branches. Valid submissions are automatically merged and deployed to GitHub Pages. Native Git publication and editing have been verified; Notion authoring is the next phase.
 
-## 作者的一次性设置
+## Language policy
 
-1. 在团队 Discord 运行 `/devlog-access register`。网站会公开显示你的 Discord 名称、头像和资料链接。
-2. Git 投稿者运行 `/devlog-access link-github`，在 GitHub 完成授权，然后运行 `/devlog-access finish-link`。如有仓库邀请，接受邀请。
-3. `/devlog-access status` 显示稳定的作者 ID 和账号状态。每位作者都必须绑定 Discord；仅作为共同作者的人不需要 GitHub。
-4. 安装 Node.js 22 或更新版本，然后克隆此仓库并运行 `npm ci`。
+The **website interface always stays in English**: navigation, buttons, labels, accessibility text, and system messages on the site. Devlogs are **English-first**: write the title, summary, body, tags, captions, and image descriptions in English. Platform display names and quoted source material can retain their original spelling.
 
-作者名称、头像和平台连接由机器人同步。不要手写作者 JSON、上传作者头像或把自己的 GitHub 用户名当作身份凭据；更改平台名称不会改变作者 ID。
+Article translations may be added later as alternate versions of the content; they will not change the language of the site interface. Translation fields and routing are not implemented yet. Chinese author guidance belongs in YAML comments (`# ...`) or HTML comments (`<!-- ... -->`), not in the published article text. Comments are hidden from the rendered article, but remain readable in this public repository.
 
-## 写作与发布
+## One-time author setup
+
+1. Run `/devlog-access register` in the team's Discord server. The website will publicly display your Discord name, avatar, and profile link.
+2. If you will push Git branches, run `/devlog-access link-github`, complete the private GitHub authorization, and run `/devlog-access finish-link`. Accept a repository invitation if one is issued.
+3. Run `/devlog-access status` to obtain your stable author ID. Every credited author needs Discord registration; GitHub is optional for coauthors who do not push branches.
+4. Install Node.js 22 or later, clone this repository, and run `npm ci`.
+
+Names, avatars, and platform links come from the verified account registry. Do not create author JSON files, upload profile avatars, or use a GitHub username as an author ID. Renaming a platform account does not change its author ID.
+
+## Write and publish
+
+Start from the repository root:
 
 ```sh
 git switch main
@@ -20,84 +28,167 @@ git switch -c devlog/your-topic
 npm run sync:authors
 ```
 
-`sync:authors` 从公开的、仅含作者显示信息的机器人接口获取资料，用于本地预览。生成的作者 JSON 被 Git 忽略，不会跟文章一起提交。接口暂时不可用时，仍可离线检查内容；缺少本地作者资料会产生待验证警告，GitHub 在发布前使用经过认证的实时登记重新验证。
+`sync:authors` retrieves public display information for local previews. Generated profiles are ignored by Git. If the service is unavailable, you can still check content offline; missing local profiles produce a warning. GitHub verifies authors against the authenticated, current registry before publication.
 
-新建 `src/content/posts/YYYY-MM-DD-short-title.md`。文件名决定公开网址，发布后保持文件名稳定；中文文件名也受支持。作者 ID 从 Discord 状态命令取得，第一位为主作者。
+### File locations
 
-```yaml
----
-title: 门厅机关的第一次试玩
-date: 2026-11-11
-discipline: tech
-authors: [your-author-id]
-summary: 本次试玩发现了什么，我们如何调整机关反馈。
-tags: [机关, 试玩]
-cover: /media/2026-11-11-first-playtest/cover.png
-coverAlt: 门厅机关亮起的指示灯
-draft: false
----
+| Purpose | Repository location | Notes |
+| --- | --- | --- |
+| Reusable template | [`templates/devlog-entry.md`](templates/devlog-entry.md) | Copy it for each new article. Keep the shared template in place; it is not published. |
+| Article | `src/content/posts/YYYY-MM-DD-short-topic.md` | One UTF-8 `.md` file containing YAML metadata and Markdown body text. |
+| Images, videos, and attachments | `public/media/YYYY-MM-DD-short-topic/` | Use a folder matching the article's filename without `.md`. |
+| Author profiles | `src/content/authors/` | Generated automatically; do not edit or commit these files. |
 
-这里是 Markdown 正文。
+Example:
+
+```text
+templates/devlog-entry.md                              shared reference
+src/content/posts/2026-11-11-first-playtest.md           your article
+public/media/2026-11-11-first-playtest/cover.png         optional cover
+public/media/2026-11-11-first-playtest/door-feedback.png optional body image
 ```
 
-必填字段为 title、date、discipline、authors。discipline 选择 tech、art、design、audio、narrative 或 production。可添加共同作者、摘要、标签和封面。可选 entryId 是稳定的 8–64 位字母数字标识，供未来同步使用；普通 Git 投稿无需填写它。
+### Filenames and public URLs
 
-媒体放入 `public/media/<文章目录>/`，在文中使用 `/media/<文章目录>/文件名`。支持 PNG、JPEG、WebP、GIF、AVIF、静态 SVG、MP4、WebM、自包含 GLB、PDF、ZIP 和文本附件；每个文件最多 25 MiB。文件内容必须符合扩展名。GLB 的纹理和缓冲必须嵌入文件。文章最多 256 KiB。
+- Use `YYYY-MM-DD-short-topic.md`, for example `2026-11-11-first-playtest.md`. Prefer a short, lowercase English topic.
+- The validator accepts letters and numbers separated by single hyphens. Spaces, underscores, repeated hyphens, and extra dots are invalid. Use lowercase `.md` as the extension. Existing Unicode filenames remain supported; do not rename published articles just to translate their paths.
+- For a new article, keep the filename date and metadata `date` consistent. Multiple articles on the same day need different topic names.
+- **The complete filename determines the public URL.** This example becomes `https://kingslayerrq.github.io/heritage-devlog/posts/2026-11-11-first-playtest/`.
+- Keep the filename unchanged when editing an existing article, even if its title changes. Do not create a dated copy for an ordinary update.
+
+### Copy the template
+
+Copy [`templates/devlog-entry.md`](templates/devlog-entry.md) into the article directory. Replace the example date and topic in these commands; the destination file should not already exist.
+
+Windows PowerShell:
+
+```powershell
+Copy-Item templates/devlog-entry.md src/content/posts/2026-11-11-first-playtest.md
+```
+
+macOS, Linux, or Git Bash:
+
+```sh
+cp -n templates/devlog-entry.md src/content/posts/2026-11-11-first-playtest.md
+```
+
+Open the copy in a text editor. On GitHub, use **Code** or **Raw** to see the full template: its Chinese help, checklist, and optional formatting/media reference are comments, so they do not appear in the rendered article. Copy only the examples you need out of the reference comment, then replace their text and paths.
+
+### What must be included
+
+| Item | Requirement | What to enter |
+| --- | --- | --- |
+| `title` | Required | An English article title. Quotes help when the title contains a colon. |
+| `date` | Required | A real date in `YYYY-MM-DD` format. Replace the example date. |
+| `discipline` | Required | One of `tech`, `art`, `design`, `audio`, `narrative`, or `production`. |
+| `authors` | Required | 1–20 registered author IDs. Replace `your-author-id` with the output of `/devlog-access status`; the first author is primary. Do not use usernames or demo author IDs. |
+| Body text | Required | Nonempty English Markdown below the closing `---`. Replace the template's example paragraphs with your work. |
+| `summary` | Recommended | A short English summary. Omitting it produces a warning; an explicitly empty value is invalid. |
+| `tags` | Recommended | Short English topic labels, e.g. `[Playtesting, Interaction]`. Use `[]` if none apply. |
+| `cover` and `coverAlt` | Optional | A real image path and an English image description. Leave the template's lines commented out if there is no cover. PNG/JPEG/WebP covers work in Discord previews; SVG covers do not. |
+| `draft` | Publication control | The template uses `true`. Change it to `false` when ready for the article to appear on the site. |
+
+The body headings are suggestions, not mandatory sections. A useful entry explains what changed, why, what was tested or learned, and what comes next.
+
+Optional `entryId` is reserved for stable source tracking. Ordinary Git articles do not need it. If supplied, it must be unique, 8–64 characters, start with a letter or number, and contain only letters, numbers, `_`, or `-`. Keep it unchanged across edits. Do not add unsupported metadata fields such as `language` or `translationOf` yet.
+
+### Text styles and fonts
+
+Markdown controls structure and emphasis; the site theme controls the fonts, sizes, and colors. Article headings use the site's display serif, body text uses its reading serif, and code uses monospace. Authors cannot select arbitrary font families or use inline CSS. The template contains copyable examples of:
+
+| Style | Syntax |
+| --- | --- |
+| Section / subsection / detail heading | `## Heading`, `### Heading`, `#### Heading` |
+| Bold / italic / both | `**bold**`, `*italic*`, `***bold italic***` |
+| Strikethrough / underline | `~~old approach~~`, `<u>underlined text</u>` |
+| Inline code | `` `DoorState.Open` `` |
+| Subscript / superscript | `H<sub>2</sub>O`, `x<sup>2</sup>` |
+| Quote | `> A playtester could not see the indicator.` |
+| Bullets / numbered lists | `- First item`, `1. First step` |
+| Task list | `- [ ] Follow-up`, `- [x] Completed` |
+| Link | `[Link text](https://example.com)` |
+
+The page already renders `title` as its main heading. Start body sections with `##`. The template also demonstrates tables, fenced code with syntax highlighting, Mermaid diagrams, and math.
+
+### Media and richer blocks
+
+Place media in `public/media/<article-folder>/` and reference it as `/media/<article-folder>/filename`. Match filename case exactly. Do not include `public/`, a local disk path, or the deployment prefix `/heritage-devlog` in an article link; the site adds its base path.
+
+```markdown
+![A green indicator above the unlocked door](/media/2026-11-11-first-playtest/door-feedback.png)
+```
+
+Use English captions and descriptive alt text. Add the actual files before enabling optional media examples. Images are not required for a text-only article.
+
+| Content | Supported syntax |
+| --- | --- |
+| Image or animated GIF | `![Description](/media/my-entry/image.png)` or a `.gif` path |
+| Gallery | `<hx-gallery caption="...">` around Markdown images |
+| Before/after comparison | `<hx-compare before="/media/..." after="/media/..." before-label="Before" after-label="After"></hx-compare>` |
+| MP4/WebM video | `<hx-video src="/media/my-entry/clip.mp4" caption="..."></hx-video>` |
+| YouTube video | `<hx-video youtube="VIDEO_ID" caption="..."></hx-video>` |
+| Self-contained 3D model | `<hx-model src="/media/my-entry/model.glb" alt="..."></hx-model>` |
+| Downloadable file | `[Download the notes (PDF)](/media/my-entry/notes.pdf)` |
+| Unreal Blueprint | `<hx-blueprint src="https://blueprintue.com/render/YOUR_ID/"></hx-blueprint>` |
+| Build notes | `<hx-build version="0.3.1" changelist="1482" date="2026-11-11">` around a list |
+| Note or clue | `<hx-note>` or `<hx-note kind="clue">` around text |
+
+Leave blank lines inside gallery, build, and note wrappers. Close every `hx-*` tag. The [template](templates/devlog-entry.md) includes complete examples; the [sample reference article](src/content/posts/2026-11-11-everything-a-page-can-hold.md) shows richer blocks in context. Do not copy its demo author credits.
+
+Supported uploads: PNG, JPEG, WebP, GIF, AVIF, static SVG, MP4, WebM, self-contained GLB, PDF, ZIP, and TXT. Each file is limited to **25 MiB**; article files are limited to **256 KiB**. File bytes must match the extension. GLB textures and buffers must be embedded. Standalone audio embeds are not currently supported.
+
+HTML uses an allowlist: scripts, event handlers, inline styles, arbitrary iframes, and dynamic components are rejected. Use the supported Markdown and `hx-*` blocks. Media URLs cannot use `javascript:`, `data:`, path traversal, or protocol-relative URLs. Blueprint embeds must use an approved HTTPS BlueprintUE render URL.
+
+### Check, preview, and publish
+
+Replace the author ID, date, text, and any media paths. Set `draft: false` to preview the article page or publish it: drafts are hidden from local article routes as well as the live site.
 
 ```sh
 npm run validate
+npm run build
 npm run dev
-git add src/content/posts public/media
+```
+
+Inspect the local site, then stop the development server with Ctrl+C. Commit the article and, if present, its media:
+
+```sh
+git add src/content/posts/2026-11-11-first-playtest.md
+# Skip this line if the article has no media files.
+git add public/media/2026-11-11-first-playtest
 git commit -m "Add devlog: first playtest"
 git push -u origin devlog/your-topic
 ```
 
-安装时启用的 pre-push 检查会发现本地内容错误。GitHub 接到分支推送后创建或更新 PR，检查内容与身份，构建，通过后自动合并并部署。报告会发送到 Discord。警告不会阻止有效内容发布；错误必须修复后再推送同一分支。
+The installed pre-push check catches local content errors. GitHub creates or updates a PR, validates content and identity, builds, then automatically merges and deploys valid work. Discord receives the result. Warnings do not block otherwise valid content; fix errors and push again to the same branch.
 
-文章编辑也走同一条分支流程，部署成功后会发送更新报告。草稿转公开会发送首次发布报告；重复运行同一发布不会重复通知。`draft: true` 只从网站隐藏文章，**此仓库本身公开，草稿原文件并不私密**；不要提交 internal 文章或秘密。
+For an edit, update `main`, create a new branch, and modify the original article/media. Keep the filename and URL stable. A successful deployment produces an edit report. Moving a draft to public produces a first-publication report; rerunning the same report does not send duplicate notifications.
 
-## 哪些内容可以修改
+**This repository is public.** `draft: true` hides an article from the site, not its source from GitHub. Comments are public too. Do not commit private material, credentials, or `internal` articles.
 
-| 内容 | 处理方式 |
+## What contributors may change
+
+| Change | Policy |
 | --- | --- |
-| Markdown 文章及文章媒体 | 检查通过后自动合并 |
-| 别人的文章或作者署名 | 允许协作编辑；编辑者及受影响的原作者、现作者会收到报告 |
-| 作者身份 JSON、头像绑定 | 只能由可信登记同步生成 |
-| 页面、样式、脚本、配置、工作流、依赖 | 普通作者提交会被拒绝；恢复这些文件后重新检查内容 |
-| 仓库所有者 kingslayerrq 的站点代码改动 | 允许；仍须通过验证和部署检查 |
+| Article Markdown and approved media | Automatically merged after checks pass |
+| Another author's article or credits | Collaborative edits allowed; the submitter and affected previous/current authors are notified |
+| Generated author profiles or identity bindings | Managed only through the trusted registry |
+| Site code, styles, scripts, configuration, workflows, dependencies | Rejected for ordinary author submissions; remove those changes before retrying |
+| Site-code changes from the verified repository owner | Allowed, with validation and deployment checks |
 
-不能通过修改 commit author、Markdown 署名或作者 JSON 冒充提交者。GitHub 账号的已验证平台 ID 与 Discord 绑定决定提交身份。
+Commit author names, article credits, and candidate author JSON cannot establish the submitter's identity. The verified numeric GitHub account binding does that.
 
-当前两篇示例文章及其示例作者为已有网站内容，保持原样可继续显示。它们不是已验证团队身份，不能复制示例署名作为新文章的作者；修改示例文章时请换成已登记的真实作者。
+The two existing demo articles retain their demo credits only while their approved content matches exactly. New articles and ordinary edits to demo articles require real registered authors; do not reuse demo credits in your template copy.
 
-## 丰富内容
+## Discord reports
 
-| 内容 | 写法 |
-| --- | --- |
-| 图集 | `<hx-gallery caption="…">` 包围 Markdown 图片 |
-| 前后对比 | `<hx-compare before="/media/…" after="/media/…" before-label="初版" after-label="新版"></hx-compare>` |
-| 视频 | `<hx-video src="/media/…/clip.mp4"></hx-video>` 或 `<hx-video youtube="VIDEO_ID"></hx-video>` |
-| 3D 模型 | `<hx-model src="/media/…/model.glb" alt="模型说明"></hx-model>` |
-| 图表 | mermaid 代码块 |
-| 数学公式 | `$行内公式$` 或 `$$` 块 |
-| Blueprint | `<hx-blueprint src="https://blueprintue.com/render/ID/"></hx-blueprint>` |
-| 构建记录 | `<hx-build version="0.3.1" changelist="1482" date="2026-11-11">` 包围条目 |
-| 提示 | `<hx-note>` 或 `<hx-note kind="clue">` 包围文字 |
+- `DISCORD_DEVLOG_ALERTS_WEBHOOK`: errors, warnings, cross-author edits, policy violations, and build/deployment failures.
+- `DISCORD_DEVLOG_WEBHOOK`: first publications and updates after a successful site deployment.
 
-图集、构建记录和提示的开始标签后、结束标签前留空行。每个 hx-* 块都需要关闭标签。标题、加粗、斜体、列表、表格、引用、链接和代码继续使用 Markdown。
+Operational Discord reports currently use Chinese, with severity colors, affected files, correction guidance, and relevant links. They mention only verified related members. This does not change the English-language website policy. A successful build alone is not a confirmed publication. Durable delivery receipts prevent automatic resends after uncertain webhook outcomes.
 
-正文 HTML 采用允许列表，禁止脚本、事件属性、任意样式、iframe 和动态组件。普通代码块里的 HTML 示例保持原样。媒体 URL 不能使用 javascript:、data:、路径穿越或无凭据的协议相对地址；Blueprint 嵌入只接受指定的 HTTPS BlueprintUE 地址。
+Keep both webhooks in the protected, main-only `devlog-publishing` GitHub Environment. Never put credentials in repository files, contributor branches, or public profiles. See [native publishing setup](docs/NATIVE_PUBLISHING.md) for App permissions, branch protection, environment settings, and recovery.
 
-## Discord 报告
-
-- `DISCORD_DEVLOG_ALERTS_WEBHOOK`：检查失败、警告、跨作者修改、权限违规、构建和部署故障。
-- `DISCORD_DEVLOG_WEBHOOK`：实际部署成功后的首次发布及文章更新。
-
-报告包含中文说明、状态颜色、涉及文章/文件、修复建议和相关链接，并只提及已验证的相关成员。成功构建不等于成功发布。Webhook 发送具有持久收据；超时等不确定结果不会自动重复发送。
-
-两个 webhook 应放在受保护的 `devlog-publishing` GitHub Environment 中，仅允许受信任的 main 工作流使用。不要把凭据放进仓库文件、普通贡献者分支或公开作者资料。详细的 GitHub App、分支保护、机器人接口及环境配置见 [native publishing setup](docs/NATIVE_PUBLISHING.md)。
-
-## 开发与验证
+## Development and verification
 
 ```sh
 npm ci
@@ -107,12 +198,12 @@ npm run validate
 npm run build
 ```
 
-`npm test` 运行 Node 测试，涵盖身份映射、内容安全、Git 策略与通知恢复。`npm run lint` 是不增加依赖的 JavaScript 语法、冲突标记和尾随空白检查；Astro 构建另外检查模板与 TypeScript 编译。`npm run validate -- --json` 输出结构化诊断；也可追加文章路径只检查指定文章。
+Tests cover identity mapping, content safety, Git policy, and notification recovery. Lint checks JavaScript syntax, conflict markers, and trailing whitespace without an extra dependency. Astro's build checks templates and TypeScript compilation. `npm run validate -- --json` prints structured diagnostics; append an article path to limit content validation.
 
-所有直接依赖均锁定精确版本。unified 11.0.5、remark-parse 11.0.0 和 parse5 8.1.1 已存在于原 Astro 依赖树，现在显式声明为验证器依赖，以使用语法树处理 Markdown、HTML 和编码 URL；不再依赖正则表达式猜测 HTML 安全性。
+Direct dependencies are pinned. The validator explicitly uses unified 11.0.5, remark-parse 11.0.0, and parse5 8.1.1, already present in the Astro dependency tree, to parse Markdown/HTML instead of guessing from regular expressions.
 
-本地作者同步默认使用 `https://dispatch.kingslayerrq.me/api/devlog-authors`，可通过 `DEVLOG_PUBLIC_API_URL` 或命令参数指定 HTTPS 地址。只为本地测试可传 `--allow-local-test` 使用 127.0.0.1 HTTP。响应限制为 1 MiB、最多 1000 人、不发送凭据、不跟随重定向。这个缓存仅用于本地显示；生产检查不以它作为权限证据。
+Local author sync defaults to `https://dispatch.kingslayerrq.me/api/devlog-authors`. Override it with `DEVLOG_PUBLIC_API_URL` or the command argument. Only local tests may use `--allow-local-test` with loopback HTTP. Responses are limited to 1 MiB and 1,000 people; requests send no credentials and follow no redirects. This public cache is for display, not publication authorization.
 
-发布配置显式使用 Astro passthroughImageService，图片以原文件显示，不经 Sharp 解码/转换；远程图片优化允许列表为空，文章也不能引用源码目录的相对图片导入。当前锁定的 Astro 5.18.2 依赖树仍有 npm audit 报告的旧版框架问题（包括 AVIF 优化路径），此配置关闭新投稿流程中的该处理路径，不代表依赖已全面升级。框架升级应单独审查与测试；不要自动运行 npm audit fix --force。
+The Astro configuration uses `passthroughImageService` to serve uploaded images unchanged, without Sharp decoding/optimization. Remote optimizer allowlists are empty, and article images cannot import relative source files. The pinned Astro 5.18.2 dependency tree still has previously reported audit findings; disabling this image-processing path is not a full dependency upgrade. Review framework upgrades separately; do not run `npm audit fix --force` automatically.
 
-Notion、Google Docs 和独立网页写作编辑器不属于本轮流程。
+Notion and Google Docs imports and article translations are future work. There is no separate web or Discord writing editor in the native Git workflow.

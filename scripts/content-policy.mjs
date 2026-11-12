@@ -14,8 +14,8 @@ import { AUTHOR_ID, DEMO_AUTHORS, DISCORD_ID, GITHUB_LOGIN, profilesFromPeople, 
 export const DISCIPLINES = ['tech', 'art', 'design', 'audio', 'narrative', 'production'];
 export const MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.svg', '.mp4', '.webm', '.glb', '.pdf', '.zip', '.txt']);
 export const DEMO_POSTS = Object.freeze({
-  'src/content/posts/2026-11-10-opening-the-door.md': 'f50351603c8ce3d7b376534b6104fa65ae4bdb14182ee447a50a18df22b0eadf',
-  'src/content/posts/2026-11-11-everything-a-page-can-hold.md': '8c8a00f96ebad89013a50d7050bf4cf632523011fde3bfb4eea0a42b8805e954',
+  'src/content/posts/2026-11-10-opening-the-door.md': '8388862e40f4bcc9b75f4d3d38ddc53628606e3c9c76657e4d09dc274939277d',
+  'src/content/posts/2026-11-11-everything-a-page-can-hold.md': '0cc01de4ef166bd54f5e659fca647071bb97244a88f6d5af677dd04a26164215',
 });
 const MAX_DOCUMENT = 256 * 1024, MAX_MEDIA = 25 * 1024 * 1024, WARN_MEDIA = 800 * 1024 * 1024;
 const POST_KEYS = new Set(['entryId', 'title', 'date', 'discipline', 'authors', 'summary', 'tags', 'cover', 'coverAlt', 'visibility', 'draft']);

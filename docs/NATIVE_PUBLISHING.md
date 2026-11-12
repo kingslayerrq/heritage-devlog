@@ -4,12 +4,20 @@ Notion is deferred. Markdown and media in this repository are the published cont
 Discord is the required author identity; GitHub is optional for credited authors and
 required for a person pushing a publishing branch.
 
+The site interface stays English, and article content is English-first. Keep Chinese
+author guidance in source comments. Future article translations will not localize
+the site interface; see the [language policy](../README.md#language-policy).
+
 ## Author workflow
 
 1. In Discord, use `/devlog-access register`, then `/devlog-access link-github`.
    Complete the private GitHub device sign-in, use `/devlog-access finish-link`, then `/devlog-access status`.
    Accept a repository invitation if the bot issued one. Status gives your author ID.
-2. Update your local main, create an author branch, and edit posts/media.
+2. Update your local main and create an author branch. Copy
+   [`templates/devlog-entry.md`](../templates/devlog-entry.md) to
+   `src/content/posts/YYYY-MM-DD-short-topic.md`; see the
+   [README](../README.md#file-locations) for naming rules and media locations.
+   Replace the template placeholders and set `draft: false` when ready to publish.
    Select registered author IDs in `authors`; do not edit generated profile JSON.
    `npm run sync:authors` refreshes the public author snapshots for local previews.
 3. Run `npm run validate` and `npm run build`, then push the branch.
