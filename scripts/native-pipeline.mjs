@@ -7,6 +7,7 @@ import { inspectCandidate, materializeProject, changedPosts, authorIds, safePath
 import { validateContent } from './content-policy.mjs';
 import { syncAuthorProfiles } from './content-profiles.mjs';
 import { deliverReport, makeReport } from './report-discord.mjs';
+import { authorizeImport, verifyImportTree } from './notion-provenance.mjs';
 
 const root = process.cwd();
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
@@ -55,11 +56,15 @@ export async function assertMergeCurrent({ api, context, appId }) {
 async function send(context, kind, issues = [], extra = {}) {
   const integration = createIntegration();
   const payload = makeReport({ ...context, revision: context.head, actorId: context.actor.id, actorLogin: context.actor.login, kind, issues,
-    authors: context.authors || [], ...extra });
+    authors: context.authors || [], actorAuthor: context.actorAuthor, sourceUrl: context.source?.sourceUrl, ...extra });
   const delivered = await deliverReport({ integration, webhook: ['publish', 'edit'].includes(kind) ? process.env.DISCORD_DEVLOG_WEBHOOK : process.env.DISCORD_DEVLOG_ALERTS_WEBHOOK,
     repo: context.repo, kind, revision: context.head, scope: extra.scope || 'pr:' + context.pr, payload });
   save('.native/reported.json', { kind, head: context.head });
   return delivered;
+}
+async function finishNotion(context, outcome, extra = {}) {
+  if (!context.source) return;
+  return createIntegration()({ action: 'notion-result', id: context.source.id, head: context.source.head, outcome, ...extra });
 }
 async function check(api, context, conclusion, issues = []) {
   const annotations = issues.filter(item => safePath(item.path) && Number.isInteger(item.line) && item.line > 0).slice(0, 50).map(item => ({
@@ -93,7 +98,7 @@ export async function prepare() {
     const branch = source.inputs?.branch;
     if (typeof branch !== 'string' || branch === 'main' || branch.length > 200) throw new Error('Choose an author branch.');
     const ref = await api('GET', '/git/ref/heads/' + encodeURIComponent(branch));
-    request = { branch, head: ref.object.sha, actor: await actorForHead(api, ref.object.sha, branch) };
+    request = { branch, head: ref.object.sha, actor: branch.startsWith('notion/') ? { id: 0, login: 'Notion import' } : await actorForHead(api, ref.object.sha, branch) };
   } else throw new Error('Unsupported publishing request.');
   const current = await api('GET', '/git/ref/heads/' + encodeURIComponent(request.branch));
   if (current.object.sha !== request.head) { output('accepted', 'false'); console.log('A newer push replaced this request.'); return; }
@@ -102,18 +107,21 @@ export async function prepare() {
   if (base !== main.object.sha) throw new Error('Trusted main changed during setup. Rerun this request.');
   if (!await hasUnmergedCommits(api, base, request.head)) { output('accepted', 'false'); console.log('This branch is already contained in main; no publication is needed.'); return; }
   fetchRevision(request.head);
-  const people = requirePeople((await createIntegration()({ action: 'people' })).people);
+  const imported = request.branch.startsWith('notion/') ? await authorizeImport({ integration: createIntegration(), root, branch: request.branch, head: request.head, base }) : null;
+  const people = imported?.people || requirePeople((await createIntegration()({ action: 'people' })).people);
+  if (imported) request.actor = imported.actor;
   const pulls = await api('GET', '/pulls?state=all&base=main&head=' + encodeURIComponent(repo.split('/')[0] + ':' + request.branch) + '&per_page=100');
   let pull = pulls.find(pull => pull.state === 'open' && pull.head?.sha === request.head);
   if (!pull && resolvedHead(pulls, request.head)) { output('accepted', 'false'); console.log('This exact branch head already has a resolved PR.'); return; }
   if (!pull) pull = await api('POST', '/pulls', { title: '开发日志 · ' + request.branch.slice(0, 100), head: request.branch, base: 'main',
     body: 'Discord 绑定作者的内容发布请求。内容检查通过后自动合并；发布结果会报告到 Discord。' });
   const context = { repo, base, head: request.head, branch: request.branch, actor: request.actor, pr: pull.number,
-    people, runId: Number(process.env.GITHUB_RUN_ID), authors: [], accepted: false };
+    people, runId: Number(process.env.GITHUB_RUN_ID), authors: [], accepted: false,
+    ...(imported ? { source: imported.source, actorAuthor: imported.actorAuthor } : {}) };
   const started = await api('POST', '/check-runs', { name: CHECK_NAME, head_sha: context.head, status: 'in_progress',
     external_id: context.base + ':' + context.head, details_url: 'https://github.com/' + repo + '/actions/runs/' + context.runId });
   context.checkId = started.id;
-  const inspected = inspectCandidate({ root, base, head: context.head, actorId: context.actor.id, author: verifiedActor(people, context.actor.id) });
+  const inspected = inspectCandidate({ root, base, head: context.head, actorId: context.actor.id, author: imported?.author || verifiedActor(people, context.actor.id) });
   const changes = changedPosts(root, base, context.head);
   context.authors = [...new Set(changes.flatMap(change => change.authors))];
   context.affectedPaths = [...new Set([...inspected.changes.map(change => change.path), ...changes.map(change => change.path)])];
@@ -130,6 +138,7 @@ export async function prepare() {
   output('base', context.base);
   output('head', context.head);
   if (!context.accepted) {
+    await finishNotion(context, 'failed', { message: 'The imported candidate failed content or author policy checks.' });
     await check(api, context, 'failure', inspected.issues);
     await send(context, inspected.issues.some(item => ['site-code', 'unsafe-mode', 'unsafe-path'].includes(item.code)) ? 'policy' : 'validation', inspected.issues);
   }
@@ -139,6 +148,7 @@ export function build({ stdio = 'inherit' } = {}) {
   let result = { head: context.head, base: context.base, issues: [], ok: false };
   try {
     fetchRevision(context.head);
+    if (context.source) verifyImportTree(root, context.source);
     materializeProject({ root, target, base: context.base, head: context.head, actorId: context.actor.id });
     syncAuthorProfiles({ root: target, people: context.people });
     const validation = validateContent({ root: target, people: context.people });
@@ -163,9 +173,18 @@ export async function finalize() {
   try { result = json('.native/result.json'); } catch { result = { issues: [issue('build-missing', '构建没有返回完整结果。', '查看检查记录并重试。')], ok: false }; }
   if (result.head !== context.head || result.base !== context.base) result = { ok: false, issues: [issue('build-stale', '构建结果与待发布版本不一致。', '重新运行当前版本检查。')] };
   if (!Array.isArray(result.issues) || result.issues.length > 2000) throw new Error('Invalid validation result.');
-  context.people = requirePeople((await createIntegration()({ action: 'people' })).people);
-  if (context.actor.id !== OWNER_ID && !verifiedActor(context.people, context.actor.id)) {
-    result.ok = false; result.issues.push(issue('access-revoked', '提交者的发布资格或账号绑定已改变。', '重新确认 Discord 身份和发布资格。'));
+  if (context.source || context.branch?.startsWith('notion/')) {
+    try {
+      const imported = await authorizeImport({ integration: createIntegration(), root, branch: context.branch, head: context.head, base: context.base });
+      Object.assign(context, { source: imported.source, people: imported.people, actor: imported.actor, actorAuthor: imported.actorAuthor });
+    } catch {
+      result.ok = false; result.issues.push(issue('notion-source-stale', 'Notion 来源、作者资格或预留版本已改变。', '请检查 Notion 反馈并将修正后的页面重新设为 Ready。'));
+    }
+  } else {
+    context.people = requirePeople((await createIntegration()({ action: 'people' })).people);
+    if (context.actor.id !== OWNER_ID && !verifiedActor(context.people, context.actor.id)) {
+      result.ok = false; result.issues.push(issue('access-revoked', '提交者的发布资格或账号绑定已改变。', '重新确认 Discord 身份和发布资格。'));
+    }
   }
   const freshChanges = changedPosts(root, context.base, context.head);
   for (const change of freshChanges) for (const authorId of authorIds(change.after)) {
@@ -175,6 +194,7 @@ export async function finalize() {
     }
   }
   if (process.env.BUILD_RESULT !== 'success' || !result.ok || result.issues.some(item => item.severity === 'error')) {
+    await finishNotion(context, 'failed', { message: 'Content validation, author authorization or the site build failed. See the Discord report.' });
     await check(api, context, 'failure', result.issues);
     await send(context, 'validation', result.issues);
     throw new Error('Content validation or build failed.');
@@ -182,10 +202,11 @@ export async function finalize() {
   try { await assertMergeCurrent({ api, context, appId: process.env.DEVLOG_APP_ID }); }
   catch (error) {
     const issues = [issue('merge-precondition', error.message, '更新分支后重试；若保护设置缺失，请仓库所有者完成部署配置。')];
+    await finishNotion(context, 'failed', { message: 'The branch or main changed after review. Set Ready again to request a fresh import.' });
     await check(api, context, 'action_required', issues); await send(context, 'validation', issues); throw error;
   }
   const changes = changedPosts(root, context.base, context.head);
-  const actorAuthor = verifiedActor(context.people, context.actor.id)?.author;
+  const actorAuthor = context.actorAuthor || verifiedActor(context.people, context.actor.id)?.author;
   for (const change of changes) if (change.before && !authorIds(change.before).includes(actorAuthor)) {
     result.issues.push({ severity: 'warning', code: 'cross-author', path: change.path, line: 1, message: '此修改涉及其他作者的日志，将通知原作者与当前署名作者。' });
   }
@@ -194,9 +215,20 @@ export async function finalize() {
   // The App is deliberately not a protection bypass. Strict required checks also close the
   // main-advance race between this recheck and GitHub's merge transaction.
   await assertMergeCurrent({ api, context, appId: process.env.DEVLOG_APP_ID });
+  if (context.source) {
+    try { await authorizeImport({ integration: createIntegration(), root, branch: context.branch, head: context.head, base: context.base }); }
+    catch (error) {
+      const issues = [issue('notion-final-review', 'Notion 来源在最终合并前已改变或暂时无法验证。', '本次没有合并；请检查页面状态，再重新提交。')];
+      await check(api, context, 'action_required', issues);
+      await send(context, 'validation', issues);
+      await finishNotion(context, 'failed', { message: 'Notion source authorization failed immediately before merge. No merge was attempted.' });
+      throw error;
+    }
+  }
   try {
     const merged = await api('PUT', '/pulls/' + context.pr + '/merge', { sha: context.head, merge_method: 'squash' });
-    if (!merged.merged) throw new Error('GitHub did not merge the reviewed commit.');
+    if (!merged.merged || !shaPattern.test(merged.sha || '')) throw new Error('GitHub did not merge the reviewed commit.');
+    await finishNotion(context, 'merged', { revision: merged.sha });
     console.log('Merged reviewed content: ' + merged.sha);
   } catch (error) {
     await send(context, 'deployment', [issue('merge-failed', '自动合并尚未确认完成。', '查看 PR 当前状态；不要直接推送 main 绕过检查。')], { scope: 'merge:' + context.pr });
@@ -220,23 +252,34 @@ export async function prepareDeployment() {
   const head = process.env.GITHUB_SHA;
   if (process.env.GITHUB_REF !== 'refs/heads/main' || !shaPattern.test(head || '')) throw new Error('Deployments run only from main.');
   if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch' && Number(source.sender?.id) !== OWNER_ID) throw new Error('Only the repository owner may dispatch production deployment.');
-  const people = requirePeople((await createIntegration()({ action: 'people' })).people);
-  let actor = { id: Number(source.sender?.id), login: source.sender?.login }, pr;
+  let people = requirePeople((await createIntegration()({ action: 'people' })).people);
+  let actor = { id: Number(source.sender?.id), login: source.sender?.login }, pr, imported;
   const pulls = await api('GET', '/commits/' + head + '/pulls');
   const merged = pulls.find(pull => pull.merged_at && pull.base.ref === 'main' && pull.merge_commit_sha === head);
-  if (merged) { actor = await actorForHead(api, merged.head.sha, merged.head.ref); pr = merged.number; }
+  if (merged) {
+    if (merged.head.ref?.startsWith('notion/')) {
+      imported = await authorizeImport({ integration: createIntegration(), root, branch: merged.head.ref, head: merged.head.sha, phase: 'deploy', fetchRevision });
+      verifyImportTree(root, imported.source, { revision: head });
+      // The merge event can start deployment before finalize persists its receipt.
+      await finishNotion({ source: imported.source }, 'merged', { revision: head });
+      people = imported.people; actor = imported.actor;
+    } else actor = await actorForHead(api, merged.head.sha, merged.head.ref);
+    pr = merged.number;
+  }
   else if (actor.id !== OWNER_ID) throw new Error('Unreviewed direct main changes cannot be deployed.');
   const previous = await previousDeployment(api, head);
   // Empty tree makes first deployment a first-publication event for every public post.
   const base = previous || git('hash-object', '-t', 'tree', '-w', '--stdin');
   if (previous) fetchRevision(previous);
   const context = { repo, head, base, actor, pr, people, runId: Number(process.env.GITHUB_RUN_ID),
-    authors: [...new Set(changedPosts(root, base, head).flatMap(change => change.authors))] };
+    authors: [...new Set(changedPosts(root, base, head).flatMap(change => change.authors))],
+    ...(imported ? { source: imported.source, actorAuthor: imported.actorAuthor } : {}) };
   save('.native/deploy.json', context);
   syncAuthorProfiles({ root, people });
   const validation = validateContent({ root, people });
   save('.native/deploy-validation.json', validation.issues);
   if (validation.errors.length) {
+    await finishNotion(context, 'failed', { message: 'Merged content could not pass deployment validation. Previously published content remains available.' });
     await send(context, 'validation', validation.issues, { scope: 'deploy-validation' });
     throw new Error('Main content validation failed.');
   }
@@ -252,18 +295,25 @@ export function profilesDeployment() {
 export async function reportDeployment() {
   const context = json('.native/deploy.json');
   if (process.env.DEPLOY_RESULT !== 'success') {
+    await finishNotion(context, 'failed', { message: 'The site build or deployment failed. Previously published content remains available.' });
     await send(context, 'deployment', [issue('deployment-failed', '网站构建或部署失败，此版本尚未确认上线。', '打开检查记录修复错误，再重新运行部署。')], { scope: 'deploy' }); return;
   }
   const site = new URL(process.env.SITE_URL || 'https://kingslayerrq.github.io');
   if (site.protocol !== 'https:') throw new Error('Public site URL must use HTTPS.');
   const basePath = (process.env.BASE_PATH || '/heritage-devlog').replace(/\/$/, '');
+  let importedUrl;
   for (const change of changedPosts(root, context.base, context.head)) {
     if (!['publish', 'edit', 'unpublish'].includes(change.kind)) continue;
     const post = change.after || change.before, kind = change.kind === 'unpublish' ? 'edit' : change.kind;
     const url = new URL(basePath + '/posts/' + post.slug.split('/').map(encodeURIComponent).join('/') + '/', site).href;
+    if (context.source?.path === change.path && change.kind !== 'unpublish') importedUrl = url;
     const cover = post.data.cover?.startsWith('/media/') ? new URL(basePath + post.data.cover, site).href : undefined;
     await send(context, kind, [], { scope: change.id, authors: change.authors, title: post.data.title,
       ...(change.kind === 'unpublish' ? { summary: '此日志已从公开网站移除。' } : { url, cover, summary: post.data.summary }) });
+  }
+  if (context.source) {
+    if (!importedUrl) throw new Error('The deployed Notion article was not found in the publication changes.');
+    await finishNotion(context, 'published', { revision: context.head, url: importedUrl });
   }
 }
 
@@ -276,7 +326,7 @@ export async function reconcile({ api, repo } = createGithub()) {
   for (let page = 1; page <= 10; page++) {
     const branches = await api('GET', '/branches?per_page=100&page=' + page);
     for (const branch of branches) {
-      if (branch.name === 'main' || !shaPattern.test(branch.commit?.sha || '')) continue;
+      if (branch.name === 'main' || branch.name.startsWith('notion/') || !shaPattern.test(branch.commit?.sha || '')) continue;
       if (!await hasUnmergedCommits(api, main.object.sha, branch.commit.sha)) continue;
       const pulls = await api('GET', '/pulls?state=all&base=main&head=' + encodeURIComponent(repo.split('/')[0] + ':' + branch.name) + '&per_page=100');
       if (resolvedHead(pulls, branch.commit.sha)) continue;

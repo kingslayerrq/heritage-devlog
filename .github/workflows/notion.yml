@@ -1,0 +1,56 @@
+name: Import Notion devlogs
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: read
+
+# One durable request at a time. Interrupted runs resume their deterministic branch.
+concurrency:
+  group: notion-devlog-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: vars.DEVLOG_NOTION_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: devlog-publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.DEVLOG_APP_ID }}
+          private-key: ${{ secrets.DEVLOG_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: read
+          permission-actions: write
+      - run: node scripts/notion-pipeline.mjs
+        env:
+          DEVLOG_APP_TOKEN: ${{ steps.app.outputs.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          BASE_PATH: ${{ vars.BASE_PATH }}
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
+      - name: Report setup failure
+        if: failure()
+        run: node scripts/report-failure.mjs
+        env:
+          REPORT_PHASE: notion-import
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}

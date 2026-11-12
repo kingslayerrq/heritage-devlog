@@ -15,7 +15,7 @@ export async function failureReport({ env = process.env, integration = createInt
   const people = requirePeople((await integration({ action: 'people' })).people);
   const actor = context?.actor || event.workflow_run?.actor || event.sender || {};
   const kind = 'deployment', scope = 'pipeline:' + (env.REPORT_PHASE || env.GITHUB_JOB || 'setup');
-  const payload = makeReport({ kind, people, repo: env.GITHUB_REPOSITORY, revision: head, actorId: actor.id, actorLogin: actor.login,
+  const payload = makeReport({ kind, people, repo: env.GITHUB_REPOSITORY, revision: head, actorId: actor.id, actorAuthor: context?.actorAuthor, actorLogin: actor.login, sourceUrl: context?.source?.sourceUrl,
     pr: context?.pr, authors: context?.authors || [], runId: Number(env.GITHUB_RUN_ID), owner: true,
     issues: [{ severity: 'error', path: '', line: 1, message: '自动发布流程未能完成此阶段：' + (env.REPORT_PHASE || env.GITHUB_JOB || 'setup'),
       fix: '打开检查记录查看具体失败原因。此报告不表示文章已经上线；修复配置或错误后重新运行。' }] });
