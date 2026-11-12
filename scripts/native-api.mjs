@@ -25,8 +25,8 @@ export function createIntegration({ origin = process.env.DEVLOG_INTEGRATION_URL,
   if (url.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(url.hostname)) throw new Error('Devlog integration requires HTTPS.');
   if (!token) throw new Error('Devlog integration token is missing.');
   return async body => {
-    const response = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
-    if (!response.ok) throw new Error(`Devlog integration request failed (${response.status}).`);
+    const response = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(['notion-next', 'notion-authorize', 'notion-bind'].includes(body.action) ? 120000 : 20000) });
+    if (!response.ok) throw Object.assign(new Error(`Devlog integration request failed (${response.status}).`), { status: response.status });
     return response.json();
   };
 }

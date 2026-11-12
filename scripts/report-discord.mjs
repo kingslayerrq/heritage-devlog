@@ -10,9 +10,9 @@ const labels = {
   edit: ['\u{1F535} 开发日志已更新', 0x3498db],
   deployment: ['\u{1F534} 发布流程失败', 0xe74c3c],
 };
-export function reportRecipients({ people, actorId, authors = [], owner = false }) {
+export function reportRecipients({ people, actorId, actorAuthor, authors = [], owner = false }) {
   const ids = new Set();
-  const actor = people.find(person => Number(person.githubId) === Number(actorId));
+  const actor = actorAuthor ? people.find(person => person.author === actorAuthor) : people.find(person => Number(person.githubId) === Number(actorId));
   if (actor) ids.add(actor.discord);
   for (const author of authors) {
     const person = people.find(candidate => candidate.author === author);
@@ -24,26 +24,37 @@ export function reportRecipients({ people, actorId, authors = [], owner = false 
   }
   return [...ids].filter(id => /^\d{15,22}$/.test(id)).slice(0, 30);
 }
+const notionBlockLink = value => {
+  try {
+    const url = new URL(value);
+    return value.length <= 200 && url.protocol === 'https:' && /(^|\.)notion\.(so|site)$/.test(url.hostname) &&
+      !url.username && !url.password && !url.port && !url.search && /^#[a-f0-9-]{32,36}$/i.test(url.hash) ? url.href : null;
+  } catch { return null; }
+};
 const githubLink = (repo, path = '') => 'https://github.com/' + repo + path;
-export function makeReport({ kind, people = [], actorId, actorLogin, authors = [], title, issues = [], repo, revision, pr, runId, url, summary, cover, owner = false }) {
+export function makeReport({ kind, people = [], actorId, actorAuthor, actorLogin, authors = [], title, issues = [], repo, revision, pr, runId, url, summary, cover, sourceUrl, sourceOnly = false, owner = false }) {
   if (!labels[kind] || !/^[\w.-]+\/[\w.-]+$/.test(repo || '') || !/^[a-f0-9]{40}$/.test(revision || '')) throw new Error('Invalid report metadata.');
+  if (sourceUrl) { const source = new URL(sourceUrl); if (source.protocol !== 'https:' || !/(^|\.)notion\.(so|site)$/.test(source.hostname) || source.username || source.password || source.search || source.hash) throw new Error('Invalid Notion source link.'); }
   const [label, color] = labels[kind];
-  const recipients = reportRecipients({ people, actorId, authors, owner: owner || ['policy', 'deployment'].includes(kind) });
-  const author = people.find(person => person.author === authors[0]) || people.find(person => Number(person.githubId) === Number(actorId));
+  const recipients = reportRecipients({ people, actorId, actorAuthor, authors, owner: owner || ['policy', 'deployment'].includes(kind) });
+  const author = people.find(person => person.author === authors[0]) || people.find(person => actorAuthor ? person.author === actorAuthor : Number(person.githubId) === Number(actorId));
   const errors = issues.filter(issue => issue.severity === 'error').length;
   const warnings = issues.filter(issue => issue.severity === 'warning').length;
   const fields = [
     { name: '提交者', value: markdown(actorLogin || '自动发布'), inline: true },
-    { name: '版本', value: '[' + revision.slice(0, 7) + '](' + githubLink(repo, '/commit/' + revision) + ')', inline: true },
+    { name: '版本', value: sourceOnly && sourceUrl ? '[Notion 来源](' + sourceUrl + ')' : '[' + revision.slice(0, 7) + '](' + githubLink(repo, '/commit/' + revision) + ')', inline: true },
   ];
   if (issues.length) fields.push({ name: '检查结果', value: errors + ' 个错误 · ' + warnings + ' 个提醒', inline: true });
   for (const issue of issues.slice(0, 6)) {
     const path = text(issue.path || '发布流程', 160);
+    const detail = markdown(issue.message, 250) + (issue.fix ? '\n**处理：**' + markdown(issue.fix, 150) : '');
+    const block = notionBlockLink(issue.sourceUrl);
     fields.push({ name: ((issue.severity === 'error' ? '❌ ' : '⚠️ ') + path + (issue.line ? ':' + issue.line : '')).slice(0, 256),
-      value: (markdown(issue.message, 250) + (issue.fix ? '\n**处理：**' + markdown(issue.fix, 150) : '')).slice(0, 450) });
+      value: block ? detail.slice(0, 300) + '\n[Open Notion block](' + block + ')' : detail.slice(0, 450) });
   }
   if (issues.length > 6) fields.push({ name: '更多详情', value: '还有 ' + (issues.length - 6) + ' 项，请打开检查记录查看完整结果。' });
   const links = [
+    sourceUrl ? '[Notion 来源](' + sourceUrl + ')' : null,
     pr ? '[查看修改](' + githubLink(repo, '/pull/' + pr) + ')' : null,
     runId ? '[检查记录](' + githubLink(repo, '/actions/runs/' + runId) + ')' : null,
     url ? '[阅读日志](' + new URL(url).href + ')' : null,

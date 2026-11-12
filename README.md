@@ -1,6 +1,6 @@
 # Heritage devlog
 
-The public development journal for Heritage. Authors register through Discord and submit Markdown through Git branches. Valid submissions are automatically merged and deployed to GitHub Pages. Native Git publication and editing have been verified; Notion authoring is the next phase.
+The public development journal for Heritage. Authors register through Discord and submit Markdown through Git branches. Valid submissions are automatically merged and deployed to GitHub Pages. Native Git publication and editing remain available. Optional [Notion authoring](docs/NOTION_PUBLISHING.md) uses the same validation and deployment workflow; it stays disabled until the owner completes connection setup and a live pilot.
 
 ## Language policy
 
@@ -16,6 +16,8 @@ Article translations may be added later as alternate versions of the content; th
 4. Install Node.js 22 or later, clone this repository, and run `npm ci`.
 
 Names, avatars, and platform links come from the verified account registry. Do not create author JSON files, upload profile avatars, or use a GitHub username as an author ID. Renaming a platform account does not change its author ID.
+
+For Notion, use `/devlog-access link-notion` after registration, then write in the team database. GitHub and a local clone are optional for that route. See [Notion publishing](docs/NOTION_PUBLISHING.md).
 
 ## Write and publish
 

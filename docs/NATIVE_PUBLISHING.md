@@ -1,6 +1,8 @@
 # Native Git publishing
 
-Notion is deferred. Markdown and media in this repository are the published content.
+Markdown and media in this repository are the published content. Optional
+[Notion authoring](NOTION_PUBLISHING.md) imports captured entries into the same
+protected workflow; native Git authoring remains unchanged.
 Discord is the required author identity; GitHub is optional for credited authors and
 required for a person pushing a publishing branch.
 

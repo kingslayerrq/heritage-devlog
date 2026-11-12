@@ -4,7 +4,7 @@ name: Devlog branch request
 # Its only purpose is to wake the trusted workflow on main after a branch push.
 on:
   push:
-    branches-ignore: [main]
+    branches-ignore: [main, 'notion/**']
 
 permissions: {}
 
