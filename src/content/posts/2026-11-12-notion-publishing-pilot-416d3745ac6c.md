@@ -9,3 +9,5 @@ draft: false
 ---
 
 “This pilot verifies that a Notion entry can be published to the Heritage devlog and updated without changing its URL\.”
+
+“This is the second revision of the pilot, confirming that updates keep the original article URL\.”
