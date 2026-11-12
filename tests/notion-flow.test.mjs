@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { compileNotionSnapshot, contentDigest } from '../scripts/notion-content.mjs';
@@ -13,7 +13,8 @@ test('Discord-only Notion content publishes an image, edits its stable URL, and 
   const fixture = mkdtempSync(join(tmpdir(), 'heritage-notion-flow-'));
   const originalCwd = process.cwd(), originalFetch = globalThis.fetch, originalEnv = { ...process.env }, originalExitCode = process.exitCode;
   const ignored = new Set(['.git', 'node_modules', '.astro', 'dist', '.native', 'tests']);
-  const authorDirectory = join(source, 'src', 'content', 'authors');
+  // Copy trusted site code, never live articles, identity snapshots or author media.
+  const authoredDirectories = new Set([join(source, 'src', 'content', 'posts'), join(source, 'src', 'content', 'authors'), join(source, 'public', 'media')]);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXkAAAAASUVORK5CYII=', 'base64');
   const repo = 'kingslayerrq/heritage-devlog', pageId = 'a'.repeat(32), articlePath = 'src/content/posts/2026-11-11-notion-flow.md';
   const people = [
@@ -24,13 +25,13 @@ test('Discord-only Notion content publishes an image, edits its stable URL, and 
     for (const entry of readdirSync(source, { withFileTypes: true })) {
       if (ignored.has(entry.name) || entry.name.startsWith('.env') || entry.name.endsWith('.log')) continue;
       cpSync(join(source, entry.name), join(fixture, entry.name), { recursive: true,
-        filter: path => dirname(path) !== authorDirectory || ['heritage-team.json', 'sample-author.json'].includes(basename(path)) });
+        filter: path => !authoredDirectories.has(path) });
     }
     process.chdir(fixture);
     const git = (...args) => execFileSync('git', args, { cwd: fixture, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
     git('init', '-b', 'main'); git('config', 'user.name', 'Publishing App Fixture'); git('config', 'user.email', 'app@example.invalid');
     git('config', 'core.autocrlf', 'false'); git('config', 'core.hooksPath', '/dev/null'); git('remote', 'add', 'origin', fixture);
-    git('add', '.'); git('add', '-f', 'src/content/authors/heritage-team.json', 'src/content/authors/sample-author.json'); git('commit', '-m', 'trusted site fixture');
+    git('add', '.'); git('commit', '-m', 'trusted site fixture');
     let main = git('rev-parse', 'HEAD'), previous = main, current, checkId = 0, sourceChanged = false, number = 0;
     const records = new Map(), pulls = new Map(), events = [], checks = [], results = [], receipts = new Map(), requests = [];
     const eventFile = join(fixture, 'request.json');

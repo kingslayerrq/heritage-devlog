@@ -1,4 +1,5 @@
 import { reportKey, OWNER_ID } from './native-api.mjs';
+import { localizeReportIssue } from './report-localization.mjs';
 
 const text = (value, max = 800) => String(value ?? '').replace(/[\u0000-\u001f]/g, ' ').replace(/@/g, '@\u200b').slice(0, max);
 const markdown = (value, max) => text(value, max).replace(/[\\\x60*_~|<>\[\]]/g, '\\$&');
@@ -41,16 +42,17 @@ export function makeReport({ kind, people = [], actorId, actorAuthor, actorLogin
   const errors = issues.filter(issue => issue.severity === 'error').length;
   const warnings = issues.filter(issue => issue.severity === 'warning').length;
   const fields = [
-    { name: '提交者', value: markdown(actorLogin || '自动发布'), inline: true },
+    { name: '提交者', value: markdown(actorId === 0 && !actorAuthor && actorLogin === 'Notion import' ? 'Notion 导入' : actorLogin || '自动发布'), inline: true },
     { name: '版本', value: sourceOnly && sourceUrl ? '[Notion 来源](' + sourceUrl + ')' : '[' + revision.slice(0, 7) + '](' + githubLink(repo, '/commit/' + revision) + ')', inline: true },
   ];
   if (issues.length) fields.push({ name: '检查结果', value: errors + ' 个错误 · ' + warnings + ' 个提醒', inline: true });
-  for (const issue of issues.slice(0, 6)) {
+  for (const sourceIssue of issues.slice(0, 6)) {
+    const issue = localizeReportIssue(sourceIssue);
     const path = text(issue.path || '发布流程', 160);
     const detail = markdown(issue.message, 250) + (issue.fix ? '\n**处理：**' + markdown(issue.fix, 150) : '');
     const block = notionBlockLink(issue.sourceUrl);
     fields.push({ name: ((issue.severity === 'error' ? '❌ ' : '⚠️ ') + path + (issue.line ? ':' + issue.line : '')).slice(0, 256),
-      value: block ? detail.slice(0, 300) + '\n[Open Notion block](' + block + ')' : detail.slice(0, 450) });
+      value: block ? detail.slice(0, 300) + '\n[打开 Notion 内容块](' + block + ')' : detail.slice(0, 450) });
   }
   if (issues.length > 6) fields.push({ name: '更多详情', value: '还有 ' + (issues.length - 6) + ' 项，请打开检查记录查看完整结果。' });
   const links = [
