@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, appendFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { setTimeout as delayFor } from 'node:timers/promises';
 import { createGithub, createIntegration, requirePeople, verifiedActor, OWNER_ID, CHECK_NAME, shaPattern } from './native-api.mjs';
 import { inspectCandidate, materializeProject, changedPosts, authorIds, safePath } from './native-git.mjs';
 import { validateContent } from './content-policy.mjs';
@@ -247,6 +248,28 @@ export async function previousDeployment(api, head) {
   }
   throw new Error('Could not establish the previous successful deployment; reconcile before publishing.');
 }
+/** GitHub may briefly omit a just-merged commit's PR association. Retry reads only. */
+export async function mergedPullForDeployment({ api, repo, head, pause = (ms, signal) => delayFor(ms, undefined, { signal }), signal }) {
+  if (!shaPattern.test(head || '') || !/^[\w.-]+\/[\w.-]+$/.test(repo || '')) throw new Error('Invalid deployment receipt request.');
+  const exactReceipt = pull => pull?.state === 'closed' && Boolean(pull.merged_at) && pull.merge_commit_sha === head &&
+    pull.base?.ref === 'main' && pull.base.repo?.full_name === repo && pull.head?.repo?.full_name === repo &&
+    shaPattern.test(pull.head.sha || '') && typeof pull.head.ref === 'string' && pull.head.ref.length > 0;
+  for (const delay of [0, 2000, 4000, 8000, 12000]) {
+    if (signal?.aborted) throw new Error('Merged PR lookup timed out; retry after GitHub finishes associating the commit.');
+    if (delay) await pause(delay, signal);
+    if (signal?.aborted) throw new Error('Merged PR lookup timed out; retry after GitHub finishes associating the commit.');
+    const associated = await api('GET', '/commits/' + head + '/pulls');
+    if (!Array.isArray(associated)) throw new Error('GitHub returned an invalid commit association response.');
+    // The association can be present before all fields in its cached summary settle.
+    // Read at most five canonical receipts; cached summary fields are not evidence.
+    const candidates = associated.filter(pull => Number.isSafeInteger(pull.number) && pull.number > 0).slice(0, 5);
+    for (const candidate of candidates) {
+      const receipt = await api('GET', '/pulls/' + candidate.number);
+      if (receipt.number === candidate.number && exactReceipt(receipt)) return receipt;
+    }
+  }
+  return null;
+}
 export async function prepareDeployment() {
   const source = event(), { api, repo } = createGithub({ token: process.env.GITHUB_TOKEN });
   const head = process.env.GITHUB_SHA;
@@ -254,8 +277,11 @@ export async function prepareDeployment() {
   if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch' && Number(source.sender?.id) !== OWNER_ID) throw new Error('Only the repository owner may dispatch production deployment.');
   let people = requirePeople((await createIntegration()({ action: 'people' })).people);
   let actor = { id: Number(source.sender?.id), login: source.sender?.login }, pr, imported;
-  const pulls = await api('GET', '/commits/' + head + '/pulls');
-  const merged = pulls.find(pull => pull.merged_at && pull.base.ref === 'main' && pull.merge_commit_sha === head);
+  const receiptDeadline = AbortSignal.timeout(30000);
+  const receiptApi = createGithub({ token: process.env.GITHUB_TOKEN, repo, fetch: (url, options) => globalThis.fetch(url, {
+    ...options, signal: AbortSignal.any([options.signal, receiptDeadline]),
+  }) }).api;
+  const merged = await mergedPullForDeployment({ api: receiptApi, repo, head, signal: receiptDeadline });
   if (merged) {
     if (merged.head.ref?.startsWith('notion/')) {
       imported = await authorizeImport({ integration: createIntegration(), root, branch: merged.head.ref, head: merged.head.sha, phase: 'deploy', fetchRevision });

@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { OWNER_ID, CHECK_NAME, requirePeople, verifiedActor, createGithub } from '../scripts/native-api.mjs';
 import { policyIssues, safePath, materializeProject, changedPosts } from '../scripts/native-git.mjs';
-import { assertMergeCurrent, protectionReady, validateSourceRun, actorForHead, previousDeployment, deploymentIsCurrent, resolvedHead, hasUnmergedCommits, reconcile } from '../scripts/native-pipeline.mjs';
+import { assertMergeCurrent, protectionReady, validateSourceRun, actorForHead, previousDeployment, deploymentIsCurrent, resolvedHead, hasUnmergedCommits, reconcile, mergedPullForDeployment } from '../scripts/native-pipeline.mjs';
 import { makeReport, deliverReport, reportRecipients } from '../scripts/report-discord.mjs';
 
 const head = 'a'.repeat(40), base = 'b'.repeat(40), repo = 'kingslayerrq/heritage-devlog';
@@ -311,4 +311,50 @@ test('GitHub client permits full-SHA comparisons while retaining traversal rejec
     await assert.rejects(api('GET', path), /Invalid GitHub API path/);
   }
   assert.equal(requests.length, 1);
+});
+
+
+test('deployment waits for delayed commit association and verifies the full merged PR receipt', async () => {
+  const delays = [], calls = [];
+  let associations = 0;
+  const summary = { number: 9, state: 'open', merged_at: null, base: { ref: 'main', repo: { full_name: repo } },
+    head: { sha: base, ref: 'codex/release', repo: { full_name: repo } } };
+  const receipt = { ...summary, state: 'closed', merged_at: '2026-11-12T05:19:12Z', merge_commit_sha: head };
+  const api = async (method, path) => {
+    calls.push({ method, path });
+    if (path.startsWith('/commits/')) return ++associations === 1 ? [] : [{ number: summary.number, merged_at: null }];
+    assert.equal(path, '/pulls/9'); return receipt;
+  };
+  assert.equal(await mergedPullForDeployment({ api, repo, head, pause: async ms => delays.push(ms) }), receipt);
+  assert.deepEqual(delays, [2000]);
+  assert.ok(calls.every(call => call.method === 'GET'));
+  assert.equal(calls.length, 3);
+});
+
+test('permanently missing or mismatched deployment receipts fail closed without trusting the sender', async () => {
+  const exact = { number: 9, state: 'closed', merged_at: '2026-11-12T05:19:12Z', merge_commit_sha: head,
+    base: { ref: 'main', repo: { full_name: repo } }, head: { sha: base, ref: 'codex/release', repo: { full_name: repo } } };
+  for (const receipt of [null, { ...exact, state: 'open' }, { ...exact, merged_at: null }, { ...exact, merge_commit_sha: base },
+    { ...exact, base: { ref: 'other', repo: { full_name: repo } } },
+    { ...exact, base: { ref: 'main', repo: { full_name: 'attacker/fork' } } },
+    { ...exact, head: { ...exact.head, repo: { full_name: 'attacker/fork' } } }]) {
+    let associations = 0;
+    const delays = [];
+    const result = await mergedPullForDeployment({ repo, head, pause: async ms => delays.push(ms), api: async (method, path) => {
+      assert.equal(method, 'GET');
+      if (path.startsWith('/commits/')) { associations++; return receipt ? [exact] : []; }
+      return receipt;
+    } });
+    assert.equal(result, null);
+    assert.equal(associations, 5);
+    assert.equal(delays.reduce((sum, ms) => sum + ms, 0), 26000);
+  }
+});
+
+test('deployment receipt lookup stops on authorization errors and expired budget without mutating retries', async () => {
+  let count = 0;
+  await assert.rejects(mergedPullForDeployment({ repo, head, api: async () => { count++; throw new Error('Forbidden'); }, pause: async () => {} }), /Forbidden/);
+  assert.equal(count, 1);
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(mergedPullForDeployment({ repo, head, signal: controller.signal, api: async () => { throw new Error('Must not request'); } }), /timed out/);
 });

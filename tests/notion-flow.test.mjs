@@ -37,7 +37,7 @@ test('Discord-only Notion content publishes an image, edits its stable URL, and 
     const response = (body, status = 200) => new Response(JSON.stringify(body), { status });
     const pullFor = branch => {
       const pull = pulls.get(branch);
-      return pull && { ...pull, base: { ref: 'main', sha: main } };
+      return pull && { ...pull, base: { ref: 'main', sha: main, repo: { full_name: repo } } };
     };
     globalThis.fetch = async (input, options = {}) => {
       const url = new URL(input), body = options.body ? JSON.parse(options.body) : {};
