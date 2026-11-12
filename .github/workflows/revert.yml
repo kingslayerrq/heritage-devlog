@@ -1,50 +1,41 @@
-name: Undo a change
+name: Prepare revert for review
 
-# For repository owners: undoes one commit on main and republishes the site.
-# Run it from the Actions tab with the commit id from the Discord alert or the commit page.
 on:
   workflow_dispatch:
     inputs:
       commit:
-        description: The commit to undo (its id, at least 7 characters)
+        description: Full lowercase 40-character SHA of a single-parent main commit
         required: true
+        type: string
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
+
+concurrency:
+  group: owner-revert
+  cancel-in-progress: false
 
 jobs:
-  undo:
+  prepare:
+    if: github.ref == 'refs/heads/main' && github.actor_id == '22969898'
     runs-on: ubuntu-latest
+    environment: devlog-publishing
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: Only owners may undo changes
-        run: |
-          owners=$(grep -E '^\*[[:space:]]' .github/CODEOWNERS | tr 'A-Z' 'a-z')
-          actor=$(echo "$ACTOR" | tr 'A-Z' 'a-z')
-          case " $owners " in
-            *" @$actor "*) echo "$ACTOR is an owner." ;;
-            *) echo "::error::Only repository owners can undo changes."; exit 1 ;;
-          esac
+          # Only trusted main code runs. Git uses this short-lived token for one
+          # create-only branch push; the script never updates main.
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare a draft PR for owner review
+        run: node scripts/native-revert.mjs
         env:
-          ACTOR: ${{ github.actor }}
-      - name: Undo the commit
-        run: |
-          case "$COMMIT" in (*[!0-9a-fA-F]*|"") echo "::error::That is not a commit id."; exit 1 ;; esac
-          sha=$(git rev-parse --verify "$COMMIT^{commit}")
-          git merge-base --is-ancestor "$sha" HEAD || { echo "::error::That commit is not on main."; exit 1; }
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ "$(git rev-list --parents -n 1 "$sha" | wc -w)" -gt 2 ]; then mainline="-m 1"; else mainline=""; fi
-          git revert --no-edit $mainline "$sha" || { echo "::error::Later changes depend on this commit, so it cannot be undone automatically. Undo it by hand."; exit 1; }
-          git push origin HEAD:main
-        env:
-          COMMIT: ${{ inputs.commit }}
-      - name: Republish the site
-        # A push made by a workflow does not start other workflows, so start the deploy explicitly.
-        run: gh workflow run deploy.yml --ref main
-        env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}

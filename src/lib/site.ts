@@ -41,11 +41,11 @@ export async function postAuthors(post: Post): Promise<Author[]> {
   });
 }
 
-/** Ways to reach an author: their opted-in Discord profile, then their own links, else the server invite. */
+/** Ways to reach an author: their verified Discord profile, then their optional verified GitHub account. */
 export function authorLinks(author: Author): { label: string; url: string }[] {
   const links = [
     ...(author.data.discord ? [{ label: 'Discord', url: `https://discord.com/users/${author.data.discord}` }] : []),
-    ...author.data.links,
+    ...(author.data.github ? [{ label: 'GitHub', url: 'https://github.com/' + author.data.github }] : []),
   ];
   if (links.length === 0 && SITE.discordInvite) links.push({ label: 'Find us on Discord', url: SITE.discordInvite });
   return links;

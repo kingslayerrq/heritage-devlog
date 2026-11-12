@@ -1,0 +1,50 @@
+name: Verify native publishing setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      require_integration:
+        description: Fail unless the deployed bot integration responds successfully
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main' && github.actor_id == '22969898'
+    runs-on: ubuntu-latest
+    environment: devlog-publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.DEVLOG_APP_ID }}
+          private-key: ${{ secrets.DEVLOG_APP_PRIVATE_KEY }}
+          # No repository filter: verification must see the whole installation.
+          owner: ${{ github.repository_owner }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-checks: write
+          permission-actions: write
+          permission-administration: read
+      - name: Verify metadata without publishing
+        run: node scripts/verify-native-setup.mjs
+        env:
+          DEVLOG_APP_ID: ${{ vars.DEVLOG_APP_ID }}
+          DEVLOG_APP_PRIVATE_KEY: ${{ secrets.DEVLOG_APP_PRIVATE_KEY }}
+          DEVLOG_APP_TOKEN: ${{ steps.app.outputs.token }}
+          DEVLOG_INSTALLATION_ID: ${{ steps.app.outputs.installation-id }}
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
+          DISCORD_DEVLOG_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_WEBHOOK }}
+          REQUIRE_INTEGRATION: ${{ inputs.require_integration }}

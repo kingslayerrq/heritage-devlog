@@ -1,223 +1,118 @@
 # Heritage devlog
 
-The public development journal for Heritage. A static Astro site, deployed to GitHub Pages every time `main` changes.
+Heritage 的公开开发日志。作者通过 Discord 登记身份，用 Git 分支提交 Markdown；通过检查的内容自动合并并发布到 GitHub Pages。Notion 接入留到这条流程完成真实团队测试之后。
 
-There are two ways to publish an entry, and they can be mixed freely:
+## 作者的一次性设置
 
-1. **By hand:** write a Markdown file in this repository and push it. Described below.
-2. **From Discord:** run `/devlog` in the team server to open a block editor that writes the same files. See `docs/DEVLOG.md` in the `heritage-afterlife` bot repository. The editor cannot yet publish by itself; its "Check and export" step lists the files to add here.
+1. 在团队 Discord 运行 `/devlog-access register`。网站会公开显示你的 Discord 名称、头像和资料链接。
+2. Git 投稿者运行 `/devlog-access link-github`，在 GitHub 完成授权，然后运行 `/devlog-access finish-link`。如有仓库邀请，接受邀请。
+3. `/devlog-access status` 显示稳定的作者 ID 和账号状态。每位作者都必须绑定 Discord；仅作为共同作者的人不需要 GitHub。
+4. 安装 Node.js 22 或更新版本，然后克隆此仓库并运行 `npm ci`。
 
-Either way, the result is a Markdown file under `src/content/posts/`. Pushing it to `main` is what publishes it.
+作者名称、头像和平台连接由机器人同步。不要手写作者 JSON、上传作者头像或把自己的 GitHub 用户名当作身份凭据；更改平台名称不会改变作者 ID。
 
-## The workflow at a glance
-
-1. Write the entry (a Markdown file, plus any pictures).
-2. `git push` to `main`. The checker runs on your machine and stops the push if something is wrong.
-3. GitHub checks it again, builds the site and publishes it, in about two minutes.
-4. The new entry is announced in Discord once it is live.
-
-New entries are always welcome, and you can credit teammates as co-authors. Changing someone else's entry is allowed but they are told in Discord, and an owner can undo it. Changes to the site's own code need an owner's approval. Details are in [Who can change what](#who-can-change-what).
-
-## Publish an entry by hand
-
-1. **Get the repository and install once.**
-
-   ```sh
-   git clone https://github.com/kingslayerrq/heritage-devlog.git
-   cd heritage-devlog
-   npm install
-   ```
-
-   `npm install` also switches on the automatic check that runs before every push. On later visits, start with `git pull` so you have everyone else's entries.
-
-2. **Make sure you have an author profile.** Each author is one file, `src/content/authors/<your-id>.json`. The file name (lowercase letters, digits and dashes, starting with a letter) is the id you sign entries with. Only `name` is required:
-
-   ```json
-   {
-     "name": "Display name",
-     "role": "Gameplay programmer",
-     "discipline": "tech",
-     "bio": "One or two sentences.",
-     "avatar": "/media/authors/your-id.png",
-     "discord": "123456789012345678",
-     "github": "your-github-user-name",
-     "links": [{ "label": "GitHub", "url": "https://github.com/you" }]
-   }
-   ```
-
-   `github` is what makes the profile yours: changes to the profile, or to entries signed with it, by anyone else are reported to you in Discord. Set it when you create the profile; it is not shown on the site. `discord` is your Discord user id. It adds a public link to your Discord profile, so leave it out unless you want strangers to be able to message you. Put the avatar picture at `public/media/authors/your-id.png`; without one, the site shows your initial.
-
-3. **Create the entry.** Add `src/content/posts/YYYY-MM-DD-short-title.md`. The file name becomes the address: `/posts/YYYY-MM-DD-short-title/`.
-
-   ```yaml
-   ---
-   title: Opening the door
-   date: 2026-11-10
-   discipline: tech     # exactly one of: tech, art, design, audio, narrative, production
-   authors: [your-id]   # author ids, lead author first; co-authors after
-   summary: One or two sentences shown on the front page and in Discord.
-   tags: [Puzzles, Front hall]
-   cover: /media/2026-11-10-short-title/cover.jpg
-   coverAlt: What the cover shows
-   draft: false         # true keeps the entry off the site
-   ---
-
-   The entry itself, in Markdown.
-   ```
-
-   `title`, `date` and `discipline` are required. An `authors` id with no matching profile file stops the build, so a byline is never silently lost.
-
-4. **Add pictures and clips.** Put them in `public/media/<entry-file-name>/` and refer to them as `/media/<entry-file-name>/file.png`. Keep clips short (the whole site is limited to 1 GB); longer videos go on YouTube and are embedded.
-
-5. **Check it locally.**
-
-   ```sh
-   npm run dev
-   ```
-
-   Open the address it prints (it ends in `/heritage-devlog/`). To check the entry at any time:
-
-   ```sh
-   npm run validate
-   ```
-
-   It names the file and line of anything wrong. See [What the checker looks for](#what-the-checker-looks-for). You do not have to remember to run it: it runs by itself whenever you push.
-
-6. **Publish.**
-
-   ```sh
-   git add .
-   git commit -m "Add entry: short title"
-   git push
-   ```
-
-   The checker runs first, on your machine. If it finds an error the push is stopped and nothing leaves your computer: fix it, commit, push again.
-
-   If git refuses the push because someone else published in the meantime, run `git pull --rebase` and push again.
-
-   Once the push goes through, the **Build and deploy** workflow (Actions tab) checks the entry again, builds the site and publishes it, usually within two minutes. The entry is then announced in Discord. If the check or the build fails, nothing is published and the previous version of the site stays up; open the failed run to see which file and line was wrong.
-
-   You need write access to push. Team members get an invitation when they link their GitHub account through the `/devlog` command in Discord. Without access, fork the repository and open a pull request.
-
-To change or remove one of your entries, edit or delete its file and push again. Announcements are only sent for newly added entries.
-
-## Who can change what
-
-| What you do | What happens |
-| --- | --- |
-| Add a new entry, profile or media file | Always accepted. Co-authors you credit are told in Discord. |
-| Change your own entry, its media, or your profile | Accepted. |
-| Change or delete someone else's entry, media or profile | Accepted and published, but the owners of those files, you and the repository owners are mentioned in a Discord alert. An owner can undo it. |
-| Change the site's own code: layouts, styles, scripts, workflows, config | Pushed straight to `main`, it is undone automatically within a minute or so and never published. Open a pull request instead; it goes in once a repository owner has approved and merged it. |
-
-What counts as yours:
-
-- **A profile** belongs to the GitHub account in its `github` field.
-- **An entry**, and its folder under `public/media/`, belongs to the authors it listed *before* your change. Adding yourself to someone else's entry does not make it yours.
-- **Entries with no `authors`, profiles with no `github`**, and anything else under `public/media/` belong to the repository owners.
-- **Repository owners** are named on the first line of `.github/CODEOWNERS` and can change anything.
-
-To propose a change to the site's code:
+## 写作与发布
 
 ```sh
-git switch -c short-description
-git add .
-git commit -m "What changed"
-git push -u origin short-description
+git switch main
+git pull --ff-only
+git switch -c devlog/your-topic
+npm run sync:authors
 ```
 
-Open the link git prints, create the pull request, and wait for an owner's approval before merging.
+`sync:authors` 从公开的、仅含作者显示信息的机器人接口获取资料，用于本地预览。生成的作者 JSON 被 Git 忽略，不会跟文章一起提交。接口暂时不可用时，仍可离线检查内容；缺少本地作者资料会产生待验证警告，GitHub 在发布前使用经过认证的实时登记重新验证。
 
-### For owners: undoing a change
+新建 `src/content/posts/YYYY-MM-DD-short-title.md`。文件名决定公开网址，发布后保持文件名稳定；中文文件名也受支持。作者 ID 从 Discord 状态命令取得，第一位为主作者。
 
-Open the **Actions** tab, choose **Undo a change**, press **Run workflow**, and paste the commit id from the Discord alert (or from the commit's page). The commit is reversed on `main` and the site is republished. Only owners can run it.
+```yaml
+---
+title: 门厅机关的第一次试玩
+date: 2026-11-11
+discipline: tech
+authors: [your-author-id]
+summary: 本次试玩发现了什么，我们如何调整机关反馈。
+tags: [机关, 试玩]
+cover: /media/2026-11-11-first-playtest/cover.png
+coverAlt: 门厅机关亮起的指示灯
+draft: false
+---
 
-### Limits
+这里是 Markdown 正文。
+```
 
-A change to the workflow files under `.github/` cannot be undone automatically (GitHub does not let a workflow rewrite workflows). In that case the site is simply not rebuilt and the owners are alerted to deal with it by hand.
+必填字段为 title、date、discipline、authors。discipline 选择 tech、art、design、audio、narrative 或 production。可添加共同作者、摘要、标签和封面。可选 entryId 是稳定的 8–64 位字母数字标识，供未来同步使用；普通 Git 投稿无需填写它。
 
-These rules guard against mistakes, not against a determined collaborator: everyone with write access can push to `main`, and the guard itself lives in this repository. An alert arrives after the change is already live. If that ever stops being enough, switch `main` back to pull requests only (Settings → Branches).
+媒体放入 `public/media/<文章目录>/`，在文中使用 `/media/<文章目录>/文件名`。支持 PNG、JPEG、WebP、GIF、AVIF、静态 SVG、MP4、WebM、自包含 GLB、PDF、ZIP 和文本附件；每个文件最多 25 MiB。文件内容必须符合扩展名。GLB 的纹理和缓冲必须嵌入文件。文章最多 256 KiB。
 
-## Where the checks run
+```sh
+npm run validate
+npm run dev
+git add src/content/posts public/media
+git commit -m "Add devlog: first playtest"
+git push -u origin devlog/your-topic
+```
 
-| When | What happens |
+安装时启用的 pre-push 检查会发现本地内容错误。GitHub 接到分支推送后创建或更新 PR，检查内容与身份，构建，通过后自动合并并部署。报告会发送到 Discord。警告不会阻止有效内容发布；错误必须修复后再推送同一分支。
+
+文章编辑也走同一条分支流程，部署成功后会发送更新报告。草稿转公开会发送首次发布报告；重复运行同一发布不会重复通知。`draft: true` 只从网站隐藏文章，**此仓库本身公开，草稿原文件并不私密**；不要提交 internal 文章或秘密。
+
+## 哪些内容可以修改
+
+| 内容 | 处理方式 |
 | --- | --- |
-| `git push` from your machine (set up by `npm install`) | Entries are checked; an error stops the push |
-| A change landing on `main` | Unapproved site-code changes are undone; changes to other people's files are reported to Discord; entries are checked and the site is built. If the check or build fails, the previous version stays up |
-| A pull request, or a push to another branch | Entries are checked and the site is built; changes to other people's files are noted on the pull request without blocking it |
+| Markdown 文章及文章媒体 | 检查通过后自动合并 |
+| 别人的文章或作者署名 | 允许协作编辑；编辑者及受影响的原作者、现作者会收到报告 |
+| 作者身份 JSON、头像绑定 | 只能由可信登记同步生成 |
+| 页面、样式、脚本、配置、工作流、依赖 | 普通作者提交会被拒绝；恢复这些文件后重新检查内容 |
+| 仓库所有者 kingslayerrq 的站点代码改动 | 允许；仍须通过验证和部署检查 |
 
-The first is a convenience and can be skipped with `git push --no-verify`. The second cannot.
+不能通过修改 commit author、Markdown 署名或作者 JSON 冒充提交者。GitHub 账号的已验证平台 ID 与 Discord 绑定决定提交身份。
 
-## What an entry can contain
+当前两篇示例文章及其示例作者为已有网站内容，保持原样可继续显示。它们不是已验证团队身份，不能复制示例署名作为新文章的作者；修改示例文章时请换成已登记的真实作者。
 
-Ordinary Markdown, plus a few blocks written as small tags. The sample entry "Everything a page can hold" (`src/content/posts/2026-11-11-everything-a-page-can-hold.md`) shows each one and is the best thing to copy from.
+## 丰富内容
 
-| Block | How to write it |
+| 内容 | 写法 |
 | --- | --- |
-| Gallery | `<hx-gallery caption="…">` around several Markdown images |
-| Before / after | `<hx-compare before="/media/…" after="/media/…" before-label="Blockout" after-label="Lit"></hx-compare>` |
-| Video | `<hx-video src="/media/…/clip.mp4" caption="…"></hx-video>` or `<hx-video youtube="VIDEO_ID"></hx-video>` |
-| 3D model | `<hx-model src="/media/…/model.glb" alt="…"></hx-model>` |
-| Diagram | a code fence marked `mermaid` |
-| Formula | `$inline$` or a `$$` block, in TeX |
+| 图集 | `<hx-gallery caption="…">` 包围 Markdown 图片 |
+| 前后对比 | `<hx-compare before="/media/…" after="/media/…" before-label="初版" after-label="新版"></hx-compare>` |
+| 视频 | `<hx-video src="/media/…/clip.mp4"></hx-video>` 或 `<hx-video youtube="VIDEO_ID"></hx-video>` |
+| 3D 模型 | `<hx-model src="/media/…/model.glb" alt="模型说明"></hx-model>` |
+| 图表 | mermaid 代码块 |
+| 数学公式 | `$行内公式$` 或 `$$` 块 |
 | Blueprint | `<hx-blueprint src="https://blueprintue.com/render/ID/"></hx-blueprint>` |
-| Build note | `<hx-build version="0.3.1" changelist="1482" date="2026-11-10">` around a list |
-| Note | `<hx-note>` or `<hx-note kind="clue">` around text |
+| 构建记录 | `<hx-build version="0.3.1" changelist="1482" date="2026-11-11">` 包围条目 |
+| 提示 | `<hx-note>` 或 `<hx-note kind="clue">` 包围文字 |
 
-When a block wraps Markdown (gallery, build note, note), leave a blank line after the opening tag and before the closing tag.
+图集、构建记录和提示的开始标签后、结束标签前留空行。每个 hx-* 块都需要关闭标签。标题、加粗、斜体、列表、表格、引用、链接和代码继续使用 Markdown。
 
-## What the checker looks for
+正文 HTML 采用允许列表，禁止脚本、事件属性、任意样式、iframe 和动态组件。普通代码块里的 HTML 示例保持原样。媒体 URL 不能使用 javascript:、data:、路径穿越或无凭据的协议相对地址；Blueprint 嵌入只接受指定的 HTTPS BlueprintUE 地址。
 
-`npm run validate` (or `npm run validate -- src/content/posts/your-file.md` for one entry) reads every entry and author profile. Errors stop publication; warnings do not.
+## Discord 报告
 
-| Errors | Warnings |
-| --- | --- |
-| File not named `YYYY-MM-DD-short-title.md` | Date differs from the date in the file name |
-| Front matter missing or not valid YAML | No `authors` (signed "The Heritage team") |
-| Missing `title`, `date` or `discipline`; a `discipline` not on the list | No `summary`, or one over 300 characters |
-| A misspelt or unknown field | Cover without `coverAlt` |
-| An author id with no profile file | SVG cover (Discord cannot show it) |
-| `visibility: internal` (this repository is public) | Entry marked `draft: true` |
-| A picture, clip, cover or avatar that is not in `public/` | Media approaching the 1 GB site limit |
-| An unknown, unclosed or incomplete `hx-` block; a code block never closed | |
-| A media file over 25 MB | |
-| An author profile with unknown fields, no `name`, or bad links | |
+- `DISCORD_DEVLOG_ALERTS_WEBHOOK`：检查失败、警告、跨作者修改、权限违规、构建和部署故障。
+- `DISCORD_DEVLOG_WEBHOOK`：实际部署成功后的首次发布及文章更新。
 
-## Discord announcements
+报告包含中文说明、状态颜色、涉及文章/文件、修复建议和相关链接，并只提及已验证的相关成员。成功构建不等于成功发布。Webhook 发送具有持久收据；超时等不确定结果不会自动重复发送。
 
-After a push to `main` has been deployed, the workflow posts one message per newly added public entry to a Discord channel, through a channel webhook. Edits and deletions are not announced, and neither are drafts.
+两个 webhook 应放在受保护的 `devlog-publishing` GitHub Environment 中，仅允许受信任的 main 工作流使用。不要把凭据放进仓库文件、普通贡献者分支或公开作者资料。详细的 GitHub App、分支保护、机器人接口及环境配置见 [native publishing setup](docs/NATIVE_PUBLISHING.md)。
 
-To switch it on:
+## 开发与验证
 
-1. In Discord, open the channel's **Edit Channel → Integrations → Webhooks → New Webhook**. Give it the name and picture the announcements should appear under, and copy its URL.
-2. In this repository, open **Settings → Secrets and variables → Actions → New repository secret**. Name it `DISCORD_DEVLOG_WEBHOOK` and paste the URL.
-
-The URL is a password for posting to that channel: keep it only in that secret, never in a file. Use a repository secret, not an environment secret; the announce job does not run in an environment, so it could not read one. Without the secret the announce step does nothing and still passes.
-
-### Alerts for the team
-
-The alerts described under [Who can change what](#who-can-change-what) go to a second webhook, so they can live in a team-only channel instead of the public one. Create a webhook in that channel the same way and save its URL as the repository secret `DISCORD_DEVLOG_ALERTS_WEBHOOK`. Without it, alerts appear only in the workflow's log.
-
-To mention people, the workflow needs to know which Discord account goes with which GitHub account. That list is the repository **variable** `DEVLOG_PEOPLE` (Settings → Secrets and variables → Actions → Variables), kept up to date by the Discord bot when someone links their GitHub account. It can also be edited by hand:
-
-```json
-[{ "github": "octocat", "discord": "123456789012345678", "author": "their-author-id" }]
+```sh
+npm ci
+npm test
+npm run lint
+npm run validate
+npm run build
 ```
 
-Anyone not on the list is named in plain text instead of being mentioned.
+`npm test` 运行 Node 测试，涵盖身份映射、内容安全、Git 策略与通知恢复。`npm run lint` 是不增加依赖的 JavaScript 语法、冲突标记和尾随空白检查；Astro 构建另外检查模板与 TypeScript 编译。`npm run validate -- --json` 输出结构化诊断；也可追加文章路径只检查指定文章。
 
-To try the alerts without changing anything, run **Build and deploy** by hand from the Actions tab and fill in a GitHub user name under "Test the guard only": the last commit is judged as if that person had pushed it, and the message is marked as a test.
+所有直接依赖均锁定精确版本。unified 11.0.5、remark-parse 11.0.0 和 parse5 8.1.1 已存在于原 Astro 依赖树，现在显式声明为验证器依赖，以使用语法树处理 Markdown、HTML 和编码 URL；不再依赖正则表达式猜测 HTML 安全性。
 
-## One-time repository setup
+本地作者同步默认使用 `https://dispatch.kingslayerrq.me/api/devlog-authors`，可通过 `DEVLOG_PUBLIC_API_URL` 或命令参数指定 HTTPS 地址。只为本地测试可传 `--allow-local-test` 使用 127.0.0.1 HTTP。响应限制为 1 MiB、最多 1000 人、不发送凭据、不跟随重定向。这个缓存仅用于本地显示；生产检查不以它作为权限证据。
 
-1. Push this folder to the `main` branch of a GitHub repository named `heritage-devlog`.
-2. In the repository, open **Settings → Pages** and set **Source** to **GitHub Actions**.
-3. Optional: add a repository secret `DISCORD_DEVLOG_WEBHOOK` holding a Discord channel webhook URL, to announce each new public entry.
-4. Optional: if the repository has a different name or uses a custom domain, set the repository variables `BASE_PATH` (for example `/other-name`, or `/` for a custom domain) and `SITE_URL`.
-5. Optional: set `discordInvite` in `src/lib/site.ts` to the server's invite link, shown as the contact link for authors with none of their own.
+发布配置显式使用 Astro passthroughImageService，图片以原文件显示，不经 Sharp 解码/转换；远程图片优化允许列表为空，文章也不能引用源码目录的相对图片导入。当前锁定的 Astro 5.18.2 依赖树仍有 npm audit 报告的旧版框架问题（包括 AVIF 优化路径），此配置关闭新投稿流程中的该处理路径，不代表依赖已全面升级。框架升级应单独审查与测试；不要自动运行 npm audit fix --force。
 
-## For automation
-
-- `/feed.json` lists every public entry with its raw Markdown, discipline and authors.
-- `/rss.xml` is a standard RSS feed.
-- `scripts/announce.mjs` posts new entries to Discord from the deploy workflow.
+Notion、Google Docs 和独立网页写作编辑器不属于本轮流程。

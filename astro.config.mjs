@@ -1,4 +1,4 @@
-import { defineConfig } from 'astro/config';
+import { defineConfig, passthroughImageService } from 'astro/config';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { remarkHeritage } from './src/lib/remark-heritage.mjs';
@@ -12,6 +12,8 @@ export default defineConfig({
   site,
   base: base || '/',
   trailingSlash: 'always',
+  // Author media is served unchanged. Never decode untrusted assets through Sharp.
+  image: { service: passthroughImageService(), domains: [], remotePatterns: [] },
   markdown: {
     remarkPlugins: [remarkMath, [remarkHeritage, { base }]],
     rehypePlugins: [rehypeKatex],

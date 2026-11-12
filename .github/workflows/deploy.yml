@@ -4,69 +4,75 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      test_actor:
-        description: Test the guard only. GitHub user name to pretend made the last commits (nothing is undone).
-        required: false
-      test_base:
-        description: Test the guard only. Commit to compare from (default is the commit before the latest).
-        required: false
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  guard:
-    # Undoes site-code changes pushed without an owner's approval, and reports changes to other
-    # people's entries to Discord. Runs before the build so an undone change is never published.
+  prepare:
+    if: vars.DEVLOG_NATIVE_ENABLED == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: devlog-publishing
     permissions:
-      contents: write
+      contents: read
+      actions: read
+      deployments: read
       pull-requests: read
-    outputs:
-      reverted: ${{ steps.guard.outputs.reverted }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install
-        run: npm ci
-      - id: guard
-        name: Check who changed what
-        run: node scripts/guard.mjs
+      - run: npm ci --ignore-scripts
+      - run: node scripts/native-pipeline.mjs prepare-deploy
         env:
-          ACTOR: ${{ inputs.test_actor || github.actor }}
-          BASE: ${{ inputs.test_base || github.event.before || 'HEAD~1' }}
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.test_actor != '' && '1' || '0' }}
           GITHUB_TOKEN: ${{ github.token }}
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
           DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
-          DEVLOG_PEOPLE: ${{ vars.DEVLOG_PEOPLE }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deploy-context
+          path: .native/deploy.json
+          include-hidden-files: true
+          retention-days: 7
 
+      - name: Report setup failure
+        if: failure()
+        run: node scripts/report-failure.mjs
+        env:
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
   build:
-    needs: guard
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}   # the branch tip, so anything the guard undid is left out
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install
-        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
-      - name: Check entries
-        run: npm run validate
-      - name: Build
-        run: npm run build
+      - uses: actions/download-artifact@v4
+        with:
+          name: deploy-context
+          path: .native
+      - run: npm ci --ignore-scripts
+      - name: Generate author snapshots
+        run: node scripts/native-pipeline.mjs profiles-deploy
+      - run: npm run validate
+      - run: npm run build
         env:
           SITE_URL: ${{ vars.SITE_URL }}
           BASE_PATH: ${{ vars.BASE_PATH }}
@@ -76,28 +82,58 @@ jobs:
 
   deploy:
     needs: build
+    outputs:
+      current: ${{ steps.current.outputs.current }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
-
-  announce:
-    # Runs after the site is live, so the link in Discord always works.
-    needs: deploy
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: ${{ github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node scripts/announce.mjs "${{ github.event.before }}" "${{ github.sha }}"
+      - run: npm ci --ignore-scripts
+      - id: current
+        run: node scripts/native-pipeline.mjs deploy-current
         env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - id: deployment
+        if: steps.current.outputs.current == 'true'
+        uses: actions/deploy-pages@v4
+
+  report:
+    needs: [prepare, build, deploy]
+    if: always() && needs.prepare.result == 'success' && (needs.deploy.result != 'success' || needs.deploy.outputs.current == 'true')
+    runs-on: ubuntu-latest
+    environment: devlog-publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: deploy-context
+          path: .native
+      - run: node scripts/native-pipeline.mjs report-deploy
+        env:
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
           DISCORD_DEVLOG_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_WEBHOOK }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
           SITE_URL: ${{ vars.SITE_URL }}
           BASE_PATH: ${{ vars.BASE_PATH }}

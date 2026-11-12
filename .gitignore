@@ -5,3 +5,6 @@ dist/
 .claude/
 # Working notes; kept out of the public repository.
 PLAN.md
+
+# Verified author snapshots are generated locally/at deployment; tracked demos stay tracked.
+src/content/authors/*.json

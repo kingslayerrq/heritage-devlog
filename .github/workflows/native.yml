@@ -1,0 +1,187 @@
+name: Native devlog publishing
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_run:
+    workflows: [Devlog branch request]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Author branch to validate and publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Serialize each branch, including manually retried runs. A newer head is rechecked
+# before merge; a superseded run never merges or deploys the wrong revision.
+concurrency:
+  group: native-devlog-${{ github.event.workflow_run.head_branch || inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: vars.DEVLOG_NATIVE_ENABLED == 'true' && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    environment: devlog-publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.DEVLOG_APP_ID }}
+          private-key: ${{ secrets.DEVLOG_APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-checks: read
+          permission-pull-requests: read
+          permission-actions: write
+      - run: node scripts/native-pipeline.mjs reconcile
+        env:
+          DEVLOG_APP_TOKEN: ${{ steps.app.outputs.token }}
+          DEVLOG_APP_ID: ${{ vars.DEVLOG_APP_ID }}
+
+      - name: Report setup failure
+        if: failure()
+        run: node scripts/report-failure.mjs
+        env:
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
+  prepare:
+    if: vars.DEVLOG_NATIVE_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    environment: devlog-publishing
+    outputs:
+      accepted: ${{ steps.prepare.outputs.accepted }}
+      base: ${{ steps.prepare.outputs.base }}
+      head: ${{ steps.prepare.outputs.head }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.DEVLOG_APP_ID }}
+          private-key: ${{ secrets.DEVLOG_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-checks: write
+          permission-actions: read
+          permission-administration: read
+      - id: prepare
+        run: node scripts/native-pipeline.mjs prepare
+        env:
+          DEVLOG_APP_TOKEN: ${{ steps.app.outputs.token }}
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
+      - uses: actions/upload-artifact@v4
+        if: steps.prepare.outputs.accepted == 'true'
+        with:
+          name: native-context
+          path: .native/context.json
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Report setup failure
+        if: failure()
+        run: node scripts/report-failure.mjs
+        env:
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.accepted == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.base }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-context
+          path: .native
+      - run: npm ci --ignore-scripts
+      - run: node scripts/native-pipeline.mjs build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-result
+          path: .native/result.json
+          include-hidden-files: true
+          retention-days: 7
+
+  finalize:
+    needs: [prepare, build]
+    if: always() && needs.prepare.outputs.accepted == 'true'
+    runs-on: ubuntu-latest
+    environment: devlog-publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-context
+          path: .native
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: native-result
+          path: .native
+      - id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.DEVLOG_APP_ID }}
+          private-key: ${{ secrets.DEVLOG_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-checks: write
+          permission-actions: read
+          permission-administration: read
+      - run: node scripts/native-pipeline.mjs finalize
+        env:
+          DEVLOG_APP_TOKEN: ${{ steps.app.outputs.token }}
+          DEVLOG_APP_ID: ${{ vars.DEVLOG_APP_ID }}
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
+          BUILD_RESULT: ${{ needs.build.result }}
+      - name: Report setup failure
+        if: failure()
+        run: node scripts/report-failure.mjs
+        env:
+          DEVLOG_INTEGRATION_URL: ${{ vars.DEVLOG_INTEGRATION_URL }}
+          DEVLOG_INTEGRATION_TOKEN: ${{ secrets.DEVLOG_INTEGRATION_TOKEN }}
+          DISCORD_DEVLOG_ALERTS_WEBHOOK: ${{ secrets.DISCORD_DEVLOG_ALERTS_WEBHOOK }}
