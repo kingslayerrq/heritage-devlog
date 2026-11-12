@@ -183,7 +183,7 @@ test('Notion validation reports mention the verified Discord actor without a Git
     sourceUrl: source.sourceUrl, sourceOnly: true, revision: source.sourceDigest.slice(0, 40), issues: [{ severity: 'error', message: 'Fix content', sourceUrl: source.sourceUrl + '#' + 'd'.repeat(32), fix: 'Long diagnostic '.repeat(30) }] });
   assert.deepEqual(report.allowed_mentions.users, [people[0].discord]);
   assert.ok(!JSON.stringify(report).includes('/commit/'));
-  assert.ok(report.embeds[0].fields.some(field => field.value.includes('[Open Notion block](' + source.sourceUrl + '#' + 'd'.repeat(32) + ')')));
+  assert.ok(report.embeds[0].fields.some(field => field.value.includes('[打开 Notion 内容块](' + source.sourceUrl + '#' + 'd'.repeat(32) + ')')));
   assert.throws(() => makeReport({ repo, kind: 'validation', revision: 'f'.repeat(40), sourceUrl: 'https://evil.example/secret' }), /source link/);
 });
 

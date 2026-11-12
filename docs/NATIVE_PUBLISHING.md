@@ -161,6 +161,11 @@ branch therefore does not create empty PRs or repeated setup-error reports.
 
 Chinese embeds contain severity color/icon, title, submitting person, revision,
 error/warning counts, file/line and correction guidance, plus PR/run/live links.
+All automatic webhook explanations, fixes and workflow labels use Chinese.
+Article titles, summaries, quoted source text, filenames, identifiers and URLs keep
+their original wording; this does not translate the English-first site or content.
+Known Notion diagnostics are localized at the report boundary. Unknown diagnostics
+receive Chinese guidance with their diagnostic code and a link to the check log.
 Mentions are explicit message-content mentions with a verified user allowlist.
 Discord-only coauthors and removed credits remain report recipients. No article
 text can create an everyone/role ping.
