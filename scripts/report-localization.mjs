@@ -8,6 +8,7 @@ const messages = new Map([
   ['The stable entry ID or registered author IDs are invalid.', '文章固定标识或已登记的作者标识无效。'],
   ['Summary must be nonempty text when supplied.', '填写 Summary 时必须提供非空文本。'],
   ['Tags must be short text labels.', 'Tags 必须是简短的文本标签。'],
+  ['Visibility must be public or private.', 'Visibility 只能是 public 或 private。'],
   ['A text field contains unsupported control characters.', '文本字段包含不支持的控制字符。'],
   ['The article text exceeds 256 KiB.', '文章文本超过 256 KiB。'],
   ['The converted article exceeds 256 KiB.', '转换后的文章超过 256 KiB。'],

@@ -14,7 +14,8 @@ const posts = defineCollection({
     tags: z.array(z.string()).default([]),
     cover: z.string().optional(),
     coverAlt: z.string().optional(),
-    visibility: z.literal('public').default('public'),
+    // "private" entries pass every check and are merged, but are never rendered on the site.
+    visibility: z.enum(['public', 'private']).default('public'),
     draft: z.boolean().default(false),
   }).strict(),
 });

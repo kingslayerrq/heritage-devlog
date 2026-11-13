@@ -105,9 +105,11 @@ export function changedPosts(root, base, head) {
   }
   return [...paths].map(path => {
     const before = postAt(root, base, path), after = postAt(root, head, path);
-    const beforePublic = Boolean(before && !before.data.draft && before.data.visibility !== 'internal');
-    const afterPublic = Boolean(after && !after.data.draft && after.data.visibility !== 'internal');
-    return { path, before, after, kind: afterPublic ? beforePublic ? 'edit' : 'publish' : beforePublic ? 'unpublish' : 'draft',
+    const beforePublic = Boolean(before && !before.data.draft && before.data.visibility === 'public');
+    const afterPublic = Boolean(after && !after.data.draft && after.data.visibility === 'public');
+    // A finished private entry is checked and merged like any other, but never shown on the site.
+    const hidden = Boolean(after && !after.data.draft && after.data.visibility === 'private');
+    return { path, before, after, private: hidden, kind: afterPublic ? beforePublic ? 'edit' : 'publish' : beforePublic ? 'unpublish' : 'draft',
       authors: [...new Set([...authorIds(before), ...authorIds(after)])],
       id: after?.data.entryId || before?.data.entryId || path };
   });

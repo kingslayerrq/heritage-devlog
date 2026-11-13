@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
-test('fixture pipeline rejects invalid content, publishes a corrected branch, then reports an edit once', { timeout: 180000 }, async () => {
+test('fixture pipeline rejects invalid content, publishes a corrected branch, then reports an edit once', { timeout: 480000 }, async () => {
   const source = fileURLToPath(new URL('..', import.meta.url));
   const fixture = mkdtempSync(join(tmpdir(), 'heritage-native-flow-'));
   const originalCwd = process.cwd(), originalFetch = globalThis.fetch, originalEnv = { ...process.env };
@@ -149,6 +149,35 @@ test('fixture pipeline rejects invalid content, publishes a corrected branch, th
     await pipeline.prepareDeployment(); await pipeline.reportDeployment();
     assert.equal(events.filter(event => event.body.embeds[0].title.includes('已更新')).length, 1);
     assert.equal(events.filter(event => event.body.embeds[0].title.includes('已发布')).length, 1);
+    // Visibility: public -> private removes the page, private edits stay hidden, private -> public republishes.
+    const cycle = async text => {
+      previous = main;
+      git('switch', branch); git('merge', 'main', '--no-edit'); commit(text);
+      rmSync('.native/project', { recursive: true, force: true });
+      await request(); pipeline.build({ stdio: 'pipe' }); assert.equal(JSON.parse(readFileSync('.native/result.json')).ok, true, readFileSync('.native/result.json', 'utf8'));
+      await pipeline.finalize();
+      process.env.GITHUB_EVENT_NAME = 'push'; process.env.GITHUB_SHA = main;
+      writeFileSync(eventFile, JSON.stringify({ sender: { id: 999, login: 'publishing-app[bot]' } }));
+      await pipeline.prepareDeployment(); await pipeline.reportDeployment();
+    };
+    const hidden = text => validPost(text).replace('tags: [测试]\n', 'tags: [测试]\nvisibility: private\n');
+    const titled = word => events.filter(event => event.body.embeds[0].title.includes(word));
+    const page = '.native/project/dist/posts/2026-11-11-fixture/index.html';
+    await cycle(hidden('转为私密。'));
+    assert.ok(!existsSync(page), 'a private entry has no page');
+    assert.ok(!readFileSync('.native/project/dist/feed.json', 'utf8').includes('2026-11-11-fixture'));
+    assert.equal(titled('已更新').length, 2);
+    assert.ok(titled('已更新')[1].body.embeds[0].description.includes('移除'));
+    assert.equal(titled('私密').length, 0, 'leaving the site is reported once, as a removal');
+    await cycle(hidden('私密状态下的修改。'));
+    assert.equal(titled('私密').length, 1);
+    assert.ok(!JSON.stringify(titled('私密')[0].body).includes('/posts/'), 'a private confirmation carries no article link');
+    assert.ok(titled('私密')[0].url !== titled('已发布')[0].url, 'private confirmations use the alerts channel');
+    await pipeline.reportDeployment();
+    assert.equal(titled('私密').length, 1, 'private confirmations are receipt-idempotent');
+    await cycle(validPost('重新公开。'));
+    assert.ok(existsSync(page));
+    assert.equal(titled('已发布').length, 2, 'returning to public is announced as a publication');
   } finally {
     globalThis.fetch = originalFetch; process.chdir(originalCwd);
     for (const key of Object.keys(process.env)) if (!(key in originalEnv)) delete process.env[key];

@@ -172,6 +172,25 @@ test('new posts, published drafts, edits, media changes and removals are classif
   f.git('rm', path); const fifth = f.commit();
   assert.equal(changedPosts(f.dir, fourth, fifth)[0].kind, 'unpublish');
 });
+test('private entries are classified as hidden, and visibility switches as removal or first publication', t => {
+  const f = fixture(t), path = 'src/content/posts/2026-11-11-test.md';
+  const hidden = text => post(false).replace('draft: false', 'draft: false\nvisibility: private') + text;
+  f.put('package.json', '{}'); const start = f.commit();
+  f.put(path, hidden('one')); const first = f.commit();
+  let change = changedPosts(f.dir, start, first)[0];
+  assert.deepEqual([change.kind, change.private], ['draft', true], 'a new private entry is never a publication');
+  f.put(path, hidden('two')); const second = f.commit();
+  change = changedPosts(f.dir, first, second)[0];
+  assert.deepEqual([change.kind, change.private], ['draft', true], 'editing while private stays hidden');
+  f.put(path, post(false, ['writer'], 'three')); const third = f.commit();
+  change = changedPosts(f.dir, second, third)[0];
+  assert.deepEqual([change.kind, change.private], ['publish', false], 'private to public is a first publication');
+  f.put(path, hidden('four')); const fourth = f.commit();
+  change = changedPosts(f.dir, third, fourth)[0];
+  assert.deepEqual([change.kind, change.private], ['unpublish', true], 'public to private leaves the site');
+  f.put(path, post(true).replace('draft: true', 'draft: true\nvisibility: private')); const fifth = f.commit();
+  assert.deepEqual([changedPosts(f.dir, fourth, fifth)[0].kind, changedPosts(f.dir, fourth, fifth)[0].private], ['draft', false], 'a private draft is still only a draft');
+});
 test('content projection keeps trusted site code and overlays only reviewed data', t => {
   const f = fixture(t), path = 'src/content/posts/2026-11-11-test.md';
   f.put(path, post()); f.put('package.json', '{"trusted":true}'); const first = f.commit();

@@ -28,6 +28,7 @@ export function validateSource(source, { id, head, base, bound = true } = {}) {
   if (!source || !hashPattern.test(source.id || '') || !/^[a-f0-9]{32}$/.test(source.pageId || '') ||
     !hashPattern.test(source.sourceDigest || '') || !/^[a-z][a-z0-9-]{0,79}$/.test(source.actorAuthor || '') ||
     !/^src\/content\/posts\/\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md$/.test(source.path || '') || !validNotionUrl(source.sourceUrl)) throw new Error('Invalid trusted Notion source.');
+  if (source.visibility !== undefined && !['public', 'private'].includes(source.visibility)) throw new Error('Invalid trusted Notion source.');
   if ((id && source.id !== id) || (head && source.head !== head) || (base && source.base !== base)) throw new Error('Notion provenance does not match the requested revision.');
   if (bound) {
     if (source.branch !== 'notion/' + source.id || !shaPattern.test(source.head || '') || !shaPattern.test(source.base || '')) throw new Error('Invalid bound Notion revision.');

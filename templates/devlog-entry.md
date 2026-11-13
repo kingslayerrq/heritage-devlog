@@ -14,6 +14,10 @@ tags: [Playtesting, Interaction] # Use [] if no tags apply. / 没有标签时可
 
 # PUBLICATION / 发布：草稿也在公开仓库中可见，不要写入秘密。
 draft: true # Set false for the local article preview and publication. / 本地预览文章页面和发布时改为 false。
+# Optional: hide a finished entry from the website while keeping it checked and merged.
+# The source stays readable in this public repository. Remove the line (or use public) to show it.
+# 中文：可选。私密文章会通过检查并合并，但不会出现在网站上；公开仓库中仍可看到原文件。
+# visibility: private
 
 # OPTIONAL cover: add a real image before uncommenting; use English alt text.
 # 中文：封面可选。先添加真实图片，再取消下面两行注释并修改路径和英文说明。

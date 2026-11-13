@@ -15,7 +15,7 @@ export const url = (path: string) => (/^https?:\/\//.test(path) ? path : base + 
 export type Post = CollectionEntry<'posts'>;
 export type Author = CollectionEntry<'authors'>;
 
-/** Public, non-draft posts, newest first. Internal posts never belong in this repo; this is a second guard. */
+/** Public, non-draft posts, newest first. Private entries stay in the repository but are never rendered or listed. */
 export async function publicPosts(): Promise<Post[]> {
   const posts = await getCollection('posts', ({ data }) => data.visibility === 'public' && !data.draft);
   return posts.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());

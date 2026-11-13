@@ -117,6 +117,16 @@ test('metadata and content cannot supply traversal, YAML injections or unsafe li
   await assert.rejects(compileNotionSnapshot(input),codeOf('path'));
   input.path = snapshot().path; input.metadata.visibility = 'internal';
   await assert.rejects(compileNotionSnapshot(input),codeOf('metadata'));
+  // Private is the only non-public value; public adds no key, so existing imports stay byte-identical.
+  input.metadata.visibility = 'private';
+  const hidden = await compileNotionSnapshot(input);
+  assert.equal(parsePost(hidden.post.content).data.visibility,'private');
+  assert.equal(parsePost(hidden.post.content).data.draft,false);
+  input.metadata.visibility = 'public';
+  const shown = await compileNotionSnapshot(input);
+  assert.ok(!shown.post.content.includes('visibility'));
+  delete input.metadata.visibility;
+  assert.equal((await compileNotionSnapshot(input)).post.content,shown.post.content);
   const bad = snapshot([block('paragraph',{rich_text:[text('click',{},'javascript:alert(1)')]})]);
   await assert.rejects(compileNotionSnapshot(bad),codeOf('url'));
   for (const value of ['http://example.com','https://user:pass@example.com','https://example.com/a\nb']) {

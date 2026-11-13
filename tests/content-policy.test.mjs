@@ -151,6 +151,14 @@ test('missing summary and cover alt warn; internal content blocks', t => {
   assert.equal(has(f.check(), 'post.cover-alt'), true);
   f.put(postPath, entry('visibility: internal\n'));
   assert.equal(has(f.check(), 'post.visibility'), true);
+  // Private entries pass every check; the author is only reminded that the repository is public.
+  f.put(postPath, entry('visibility: private\n'));
+  const hidden = f.check();
+  assert.equal(hidden.errors.length, 0);
+  assert.equal(has(hidden, 'post.private'), true);
+  assert.equal(has(hidden, 'post.visibility'), false);
+  f.put(postPath, entry('visibility: public\n'));
+  assert.equal(has(f.check(), 'post.private'), false);
 });
 
 test('invalid dates, missing authors and duplicate stable IDs fail', t => {
