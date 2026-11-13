@@ -36,7 +36,7 @@ export function policyIssues({ changes, entries, actorId, author, baseIsAncestor
   const issues = [];
   const owner = Number(actorId) === OWNER_ID;
   if (!owner && !author) issues.push({ severity: 'error', code: 'account-unlinked', path: '', line: 1,
-    message: '提交者尚未绑定有资格发布的 Discord 作者身份。', fix: '在 Discord 使用 /devlog-access register 和 /devlog-access link-github，然后重新运行检查。' });
+    message: '提交者尚未绑定有资格发布的 Discord 作者身份。', fix: '在 Discord 使用 /devlog-access guide，然后重新运行检查。' });
   if (!baseIsAncestor) issues.push({ severity: 'error', code: 'stale-base', path: '', line: 1,
     message: '分支没有包含 main 的最新版本。', fix: '先合并或 rebase 最新 main，再推送分支重试。' });
   if (changes.length > 1000) issues.push({ severity: 'error', code: 'too-many-files', path: '', line: 1, message: '单次提交超过 1000 个文件。', fix: '请拆分为较小的内容提交。' });

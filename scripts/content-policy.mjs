@@ -239,7 +239,7 @@ export function validateContent({ root, people, paths, allowUnresolvedAuthors = 
     const demo = DEMO_AUTHORS.has(id) && data.demo === true;
     if (!text(data.name)) report('error', path, 1, 'identity.name', '作者缺少显示名称。');
     if (!demo) {
-      if (data.demo || data.generated !== true || !DISCORD_ID.test(data.discord || '') || typeof data.discord !== 'string') report('error', path, 1, 'identity.discord', '作者必须有通过 Discord 登记的身份。', '运行 /devlog-access register；不要手写作者资料。');
+      if (data.demo || data.generated !== true || !DISCORD_ID.test(data.discord || '') || typeof data.discord !== 'string') report('error', path, 1, 'identity.discord', '作者必须有通过 Discord 登记的身份。', '运行 /devlog-access guide；不要手写作者资料。');
       if (['role', 'bio', 'discipline', 'links'].some(key => data[key] !== undefined)) report('error', path, 1, 'identity.manual', '身份资料由平台同步，不能手动填写。', '保留文章内容字段，通过 Discord 绑定账号。');
       if (data.github !== undefined && (!GITHUB_LOGIN.test(data.github) || !Number.isSafeInteger(data.githubId) || data.githubId < 1)) report('error', path, 1, 'identity.github', 'GitHub 连接缺少有效的已验证账号 ID。');
       if (data.avatar) { try { trustedAvatar(data.avatar); } catch { report('error', path, 1, 'identity.avatar', '作者头像必须来自 Discord CDN。'); } }
@@ -280,7 +280,7 @@ export function validateContent({ root, people, paths, allowUnresolvedAuthors = 
       for (const id of data.authors) {
         const author = byAuthor.get(id);
         if (!author && allowUnresolvedAuthors && !registry && !DEMO_AUTHORS.has(id)) report('warning', path, at('authors'), 'post.identity-deferred', '本地尚未同步作者 ' + id + '；发布前 GitHub 会验证真实 Discord 身份。', '运行 npm run sync:authors 刷新本地资料。');
-        else if (!author || (DEMO_AUTHORS.has(id) && !demo)) report('error', path, at('authors'), 'post.unknown-author', '作者尚未登记，或使用了示例作者：' + id, '使用 /devlog-access register 登记，并填写真实作者 ID。');
+        else if (!author || (DEMO_AUTHORS.has(id) && !demo)) report('error', path, at('authors'), 'post.unknown-author', '作者尚未登记，或使用了示例作者：' + id, '使用 /devlog-access guide 登记，并填写真实作者 ID。');
       }
     }
     if (data.summary === undefined) report('warning', path, 1, 'post.summary', '没有 summary，首页与 Discord 将只显示标题。', '添加一两句摘要。');

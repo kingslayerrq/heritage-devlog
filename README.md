@@ -10,14 +10,14 @@ Article translations may be added later as alternate versions of the content; th
 
 ## One-time author setup
 
-1. Run `/devlog-access register` in the team's Discord server. The website will publicly display your Discord name, avatar, and profile link.
-2. If you will push Git branches, run `/devlog-access link-github`, complete the private GitHub authorization, and run `/devlog-access finish-link`. Accept a repository invitation if one is issued.
+1. Run `/devlog-access guide` in the team's Discord server and open the bot's DM. Pressing a route button registers you; the website will publicly display your Discord name, avatar, and profile link.
+2. If you will push Git branches, press **用 GitHub 投稿** in that DM and complete the private GitHub authorization; the DM updates by itself. Accept a repository invitation if one is issued.
 3. Run `/devlog-access status` to obtain your stable author ID. Every credited author needs Discord registration; GitHub is optional for coauthors who do not push branches.
 4. Install Node.js 22 or later, clone this repository, and run `npm ci`.
 
 Names, avatars, and platform links come from the verified account registry. Do not create author JSON files, upload profile avatars, or use a GitHub username as an author ID. Renaming a platform account does not change its author ID.
 
-For Notion, use `/devlog-access link-notion` after registration, then write in the team database. GitHub and a local clone are optional for that route. See [Notion publishing](docs/NOTION_PUBLISHING.md).
+For Notion, press **用 Notion 投稿** in the same DM, then write in the team database. GitHub and a local clone are optional for that route. See [Notion publishing](docs/NOTION_PUBLISHING.md).
 
 ## Write and publish
 

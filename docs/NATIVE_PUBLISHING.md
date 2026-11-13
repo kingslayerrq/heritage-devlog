@@ -12,8 +12,8 @@ the site interface; see the [language policy](../README.md#language-policy).
 
 ## Author workflow
 
-1. In Discord, use `/devlog-access register`, then `/devlog-access link-github`.
-   Complete the private GitHub device sign-in, use `/devlog-access finish-link`, then `/devlog-access status`.
+1. In Discord, run `/devlog-access guide` and press **用 GitHub 投稿** in the bot's DM.
+   Complete the private GitHub device sign-in; the DM updates by itself. `/devlog-access status` shows the result.
    Accept a repository invitation if the bot issued one. Status gives your author ID.
 2. Update your local main and create an author branch. Copy
    [`templates/devlog-entry.md`](../templates/devlog-entry.md) to

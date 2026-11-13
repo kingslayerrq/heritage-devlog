@@ -37,7 +37,7 @@ const authors = defineCollection({
     discipline: z.enum(DISCIPLINE_KEYS).optional(),
     bio: z.string().optional(),
     links: z.array(z.object({ label: z.string(), url: z.string().url() })).default([]),
-  }).strict().refine(data => data.demo || (data.generated && data.discord), { message: 'Authors must register with /devlog-access register.' })
+  }).strict().refine(data => data.demo || (data.generated && data.discord), { message: 'Authors must register through /devlog-access guide.' })
     .refine(data => !data.github || data.githubId, { message: 'GitHub links require a verified account ID.' }),
 });
 
