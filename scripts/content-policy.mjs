@@ -289,7 +289,8 @@ export function validateContent({ root, people, paths, allowUnresolvedAuthors = 
     if (data.tags !== undefined && (!Array.isArray(data.tags) || data.tags.length > 30 || data.tags.some(tag => !text(tag) || tag.length > 80))) report('error', path, at('tags'), 'post.tags', 'tags 必须是最多 30 个非空短标签。');
     if (typeof data.draft !== 'boolean') report('error', path, at('draft'), 'post.draft', 'draft 必须是 true 或 false。');
     if (data.draft === true) report('warning', path, at('draft'), 'post.draft', '此文章是草稿，不会出现在网站上。公开仓库中的原文件仍可被访问。');
-    if (data.visibility !== 'public') report('error', path, at('visibility'), 'post.visibility', '此仓库公开；不能提交 internal 或其他私密文章。', '移除私密内容，公开文章使用 visibility: public。');
+    if (data.visibility === 'private') report('warning', path, at('visibility'), 'post.private', '此文章设为私密，不会出现在网站上。公开仓库中的原文件和媒体仍可被访问。', '不要写入机密内容；改为 visibility: public 即可在网站上显示。');
+    else if (data.visibility !== 'public') report('error', path, at('visibility'), 'post.visibility', 'visibility 只能是 public 或 private。此仓库公开，不能提交 internal 等机密文章。', '使用 visibility: public 或 visibility: private。');
     if (data.cover !== undefined) {
       if (!safeUrl(data.cover, { image: true })) report('error', path, at('cover'), 'post.cover', '封面必须是 /media/ 路径或 HTTPS 地址。');
       else {

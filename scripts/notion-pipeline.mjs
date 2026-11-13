@@ -81,7 +81,9 @@ export async function recoverImport({ source, root, api, repo, integration, fetc
         verifyImportTree(root, source, { revision: deployment.sha, exactDiff: false });
       } catch { continue; }
       await authorizeImport({ integration, root, branch: source.branch, head: source.head, phase: 'deploy' });
-      await integration({ action: 'notion-result', id: source.id, head: source.head, outcome: 'published', revision: deployment.sha, url: importedPublicUrl(source) });
+      await integration({ action: 'notion-result', id: source.id, head: source.head, outcome: 'published', revision: deployment.sha,
+        // Private entries are confirmed as deployed-but-hidden and carry no public address.
+        ...(source.visibility === 'private' ? {} : { url: importedPublicUrl(source) }) });
       return { state: 'published', revision: deployment.sha };
     }
     if (deployments.length < 100) break;

@@ -176,7 +176,9 @@ Report kinds:
 - Nonblocking warnings and cross-author changes report without requiring approval.
 - Publication and edit reports are emitted only after successful deployment.
 - Draft-to-public transitions count as publication; media-only changes count as edits.
-- Removing a public post or making it a draft produces an update stating it was removed.
+- Removing a public post, making it a draft or setting `visibility: private` produces an update stating it was removed.
+- A finished private entry (new or edited) produces a private confirmation in the alerts channel with no article link. Returning it to public counts as publication.
+- Media referenced only by private or draft entries is removed from the built site; the files remain in the public repository.
 
 The bot persists a reservation before a webhook request and the returned message
 ID afterward. Keys use repository/event/article/revision rather than workflow run

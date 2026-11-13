@@ -120,7 +120,8 @@ export async function compileNotionSnapshot(snapshot, { download = downloadNotio
   if (!plainObject(snapshot) || !uuid(snapshot.pageId) || !plainObject(snapshot.metadata) || !Array.isArray(snapshot.blocks)) fail('snapshot', 'The Notion submission is incomplete.');
   if (!/^src\/content\/posts\/\d{4}-\d{2}-\d{2}-[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*\.md$/u.test(path) || !isAuthorContentPath(path)) fail('path', 'The article path is invalid.');
   const data = snapshot.metadata;
-  if (Object.keys(data).some(key => !['title','date','discipline','authors','summary','tags'].includes(key))) fail('metadata', 'The submission contains unsupported article fields.');
+  if (Object.keys(data).some(key => !['title','date','discipline','authors','summary','tags','visibility'].includes(key))) fail('metadata', 'The submission contains unsupported article fields.');
+  if (data.visibility !== undefined && !['public','private'].includes(data.visibility)) fail('metadata', 'Visibility must be public or private.');
   if (!safeText(data.title) || !data.title.trim() || data.title.length > 1000 || !/^\d{4}-\d{2}-\d{2}$/.test(data.date || '') || Number.isNaN(Date.parse(data.date)) || new Date(data.date).toISOString().slice(0,10) !== data.date || !DISCIPLINES.includes(data.discipline)) fail('metadata', 'Title, date, or discipline is invalid.');
   if (typeof snapshot.entryId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{7,63}$/.test(snapshot.entryId) || !Array.isArray(data.authors) || !data.authors.length || data.authors.length > 20 || new Set(data.authors).size !== data.authors.length || data.authors.some(id => typeof id !== 'string' || !/^[a-z][a-z0-9-]{0,79}$/.test(id))) fail('metadata', 'The stable entry ID or registered author IDs are invalid.');
   if (data.summary !== undefined && (!safeText(data.summary) || !data.summary.trim())) fail('metadata', 'Summary must be nonempty text when supplied.');
@@ -293,7 +294,7 @@ export async function compileNotionSnapshot(snapshot, { download = downloadNotio
   for (const block of snapshot.blocks) sections.push(await visit(block,1));
   const body = sections.filter(Boolean).join('\n\n');
   if (!body.trim()) fail('empty', 'The article body is empty.');
-  const metadata = {entryId:snapshot.entryId,title:data.title,date:data.date,discipline:data.discipline,authors:data.authors,...(data.summary !== undefined ? {summary:data.summary} : {}),tags:data.tags || [],draft:false};
+  const metadata = {entryId:snapshot.entryId,title:data.title,date:data.date,discipline:data.discipline,authors:data.authors,...(data.summary !== undefined ? {summary:data.summary} : {}),tags:data.tags || [],...(data.visibility === 'private' ? {visibility:'private'} : {}),draft:false};
   const frontmatter = Object.entries(metadata).map(([key,value]) => key + ': ' + JSON.stringify(value)).join('\n');
   const content = '---\n' + frontmatter + '\n---\n\n' + body + '\n';
   if (Buffer.byteLength(content) > NOTION_CONTENT_LIMITS.document) fail('document-size', 'The converted article exceeds 256 KiB.',undefined,'Split the article into smaller entries.');

@@ -88,6 +88,7 @@ Open the copy in a text editor. On GitHub, use **Code** or **Raw** to see the fu
 | `summary` | Recommended | A short English summary. Omitting it produces a warning; an explicitly empty value is invalid. |
 | `tags` | Recommended | Short English topic labels, e.g. `[Playtesting, Interaction]`. Use `[]` if none apply. |
 | `cover` and `coverAlt` | Optional | A real image path and an English image description. Leave the template's lines commented out if there is no cover. PNG/JPEG/WebP covers work in Discord previews; SVG covers do not. |
+| `visibility` | Optional | `public` (default) or `private`. A private entry passes every check and is merged, but has no page on the website. See [Private entries](#private-entries-and-taking-an-entry-down). |
 | `draft` | Publication control | The template uses `true`. Change it to `false` when ready for the article to appear on the site. |
 
 The body headings are suggestions, not mandatory sections. A useful entry explains what changed, why, what was tested or learned, and what comes next.
@@ -166,6 +167,16 @@ The installed pre-push check catches local content errors. GitHub creates or upd
 For an edit, update `main`, create a new branch, and modify the original article/media. Keep the filename and URL stable. A successful deployment produces an edit report. Moving a draft to public produces a first-publication report; rerunning the same report does not send duplicate notifications.
 
 **This repository is public.** `draft: true` hides an article from the site, not its source from GitHub. Comments are public too. Do not commit private material, credentials, or `internal` articles.
+
+## Private entries and taking an entry down
+
+Add `visibility: private` to an entry's metadata to keep it off the website. A private entry is validated, reviewed, merged and reported exactly like a public one, but it has no article page and does not appear on the home page, author, tag or discipline pages, or in the RSS and JSON feeds. Media used only by private or draft entries is left out of the deployed site.
+
+- **Take a published entry down:** change it to `visibility: private` on a new branch and push. After deployment the page and its media are gone, and Discord receives an update saying it was removed.
+- **Bring it back:** remove the line or set `visibility: public` and push. The entry returns at the same URL and is announced as a publication.
+- **Publish privately from the start:** set `draft: false` and `visibility: private`. Discord receives a private confirmation in the alerts channel with no article link.
+
+**Private does not mean secret.** This repository is public, so the Markdown, media and full history of a private entry stay readable on GitHub. The validator reminds you of this with a warning. Never commit confidential material; `internal` and other values are rejected. Search engines and other sites may also keep copies of a page that was public before it was taken down.
 
 ## What contributors may change
 

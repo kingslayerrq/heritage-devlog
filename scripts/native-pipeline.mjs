@@ -327,8 +327,16 @@ export async function reportDeployment() {
   const site = new URL(process.env.SITE_URL || 'https://kingslayerrq.github.io');
   if (site.protocol !== 'https:') throw new Error('Public site URL must use HTTPS.');
   const basePath = (process.env.BASE_PATH || '/heritage-devlog').replace(/\/$/, '');
-  let importedUrl;
+  let importedUrl, importedPrivate = false;
   for (const change of changedPosts(root, context.base, context.head)) {
+    if (change.private) {
+      if (context.source?.path === change.path) importedPrivate = true;
+      // Leaving the public site is announced by the existing removal report below.
+      if (change.kind !== 'unpublish') {
+        await send(context, 'private', [], { scope: change.id, authors: change.authors, title: change.after.data.title });
+        continue;
+      }
+    }
     if (!['publish', 'edit', 'unpublish'].includes(change.kind)) continue;
     const post = change.after || change.before, kind = change.kind === 'unpublish' ? 'edit' : change.kind;
     const url = new URL(basePath + '/posts/' + post.slug.split('/').map(encodeURIComponent).join('/') + '/', site).href;
@@ -338,8 +346,9 @@ export async function reportDeployment() {
       ...(change.kind === 'unpublish' ? { summary: '此日志已从公开网站移除。' } : { url, cover, summary: post.data.summary }) });
   }
   if (context.source) {
-    if (!importedUrl) throw new Error('The deployed Notion article was not found in the publication changes.');
-    await finishNotion(context, 'published', { revision: context.head, url: importedUrl });
+    if (!importedUrl && !importedPrivate) throw new Error('The deployed Notion article was not found in the publication changes.');
+    // A private entry is confirmed as stored, but has no public address to record.
+    await finishNotion(context, 'published', { revision: context.head, ...(importedUrl ? { url: importedUrl } : {}) });
   }
 }
 

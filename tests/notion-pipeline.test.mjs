@@ -226,6 +226,12 @@ test('a later successful Pages deployment completes a superseded Notion merge wi
   assert.equal(actions.at(-1).head, first.head);
   assert.equal(actions.at(-1).url, 'https://kingslayerrq.github.io/heritage-devlog/posts/' + source.path.slice('src/content/posts/'.length, -3) + '/');
   assert.equal(reported.length, 0);
+  // A private entry is confirmed by the same deployment proof, but records no public address.
+  const hidden = { ...source, visibility: 'private' };
+  const privateResult = await recoverImport({ source: hidden, root: f.root, api, repo, integration: async body => { actions.push(body); return body.action === 'notion-authorize' ? { source: hidden, people } : {}; }, fetchRevision: () => {} });
+  assert.equal(privateResult.state, 'published');
+  assert.deepEqual([actions.at(-1).outcome, 'url' in actions.at(-1)], ['published', false]);
+  await assert.rejects(recoverImport({ source: { ...source, visibility: 'internal' }, root: f.root, api, repo, integration, fetchRevision: () => {} }), /Invalid trusted Notion source/);
 });
 
 test('a failed deployment or a changed deployed article cannot be mistaken for confirmed publication', async t => {

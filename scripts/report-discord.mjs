@@ -9,6 +9,7 @@ const labels = {
   policy: ['🔒 修改范围不允许', 0xe74c3c],
   publish: ['🚀 开发日志已发布', 0x2ecc71],
   edit: ['📝 开发日志已更新', 0x3498db],
+  private: ['🔒 开发日志已保存为私密', 0x95a5a6],
   deployment: ['💥 发布流程失败', 0xe74c3c],
 };
 export function reportRecipients({ people, actorId, actorAuthor, authors = [], owner = false }) {
@@ -63,7 +64,7 @@ export function makeReport({ kind, people = [], actorId, actorAuthor, actorLogin
   ].filter(Boolean).join(' · ');
   fields.push({ name: '链接', value: links || '[查看版本](' + githubLink(repo, '/commit/' + revision) + ')' });
   const embed = { title: label + (title ? ' · ' + text(title, 100) : ''), color,
-    description: markdown(summary || (kind === 'policy' ? '请撤回列出的非内容文件修改，再推送分支重试。分支内容未被自动删除或回滚。' : ['publish', 'edit'].includes(kind) ? '此版本已完成网站部署。' : '错误会阻止发布；提醒不会阻止发布。'), 500),
+    description: markdown(summary || (kind === 'policy' ? '请撤回列出的非内容文件修改，再推送分支重试。分支内容未被自动删除或回滚。' : ['publish', 'edit'].includes(kind) ? '此版本已完成网站部署。' : kind === 'private' ? '此日志已通过检查并合并，但设为私密，不会出现在网站上。公开仓库中仍可看到原文件。' : '错误会阻止发布；提醒不会阻止发布。'), 500),
     fields, footer: { text: 'Heritage · 开发日志' }, timestamp: new Date().toISOString() };
   if (author) embed.author = { name: text(author.name, 100), ...(author.avatarUrl && /^https:\/\/cdn\.discordapp\.com\//.test(author.avatarUrl) ? { icon_url: author.avatarUrl } : {}) };
   if (cover && url) { const image = new URL(cover, url); if (image.origin === new URL(url).origin && /\.(png|jpe?g|webp|gif)$/i.test(image.pathname)) embed.image = { url: image.href }; }
@@ -76,7 +77,8 @@ export async function deliverReport({ integration, webhook, repo, kind, revision
   const url = new URL(webhook);
   if (!['discord.com', 'discordapp.com'].includes(url.hostname) || url.protocol !== 'https:' || !/^\/api(?:\/v\d+)?\/webhooks\/\d+\/[\w.-]+$/.test(url.pathname)) throw new Error('Invalid Discord webhook configuration.');
   url.searchParams.set('wait', 'true');
-  const storageKind = kind === 'warning' ? 'validation' : kind;
+  // Receipt storage keeps its original kinds; the report key still separates these events.
+  const storageKind = kind === 'warning' ? 'validation' : kind === 'private' ? 'edit' : kind;
   const key = reportKey(repo, kind, scope, revision);
   const reserved = await integration({ action: 'reserve-report', key, kind: storageKind, revision });
   if (reserved.state === 'sent') return { state: 'sent', duplicate: true, messageId: reserved.messageId };

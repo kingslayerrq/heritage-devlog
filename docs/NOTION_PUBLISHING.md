@@ -18,12 +18,13 @@ Create a page in the team's **Devlog entries** database.
 | --- | --- |
 | Name | Required English article title, at most 1,000 characters |
 | Discipline | Required: tech, art, design, audio, narrative or production |
-| Status | Draft while writing; Ready to publish for a new post; Ready to update for an edit |
+| Status | Draft while writing; Ready to publish for a new post; Ready to update for an edit. Automation sets **Published (Public)** or **Published (Private)** when it finishes |
+| Visibility | Optional select: **Public** or **Private**. Blank means Public |
 | Authors | Optional linked people; blank credits the submitting person |
 | Date | Optional date; otherwise the entry's creation date |
 | Summary | Recommended short English summary |
 | Tags | Recommended English topic tags |
-| Published URL | Filled by automation after successful deployment |
+| Published URL | Filled by automation after successful deployment; empty while the entry is private |
 | Feedback | Validation and publication feedback from automation |
 
 Write the body inside the page. Use the same useful structure as [the native template](../templates/devlog-entry.md): what changed, why, evidence and next steps. You do not need front matter, filenames, author IDs or a Git branch.
@@ -31,6 +32,19 @@ Write the body inside the page. Use the same useful structure as [the native tem
 Select **Ready to publish** only when the entry is ready to become public. The importer captures the source and writes **In review** in Feedback. It leaves your Ready/Draft status unchanged while claiming so a concurrent withdrawal survives. Errors produce **Needs changes** and a Discord report; correct the page and select Ready again. Warnings are reported but do not block publication. **Published** means a successful website deployment was confirmed.
 
 For updates, edit the same page and select **Ready to update**. The original URL stays fixed even if the title changes. Ordinary typing never updates the website. A source change during review invalidates the reviewed content; submit the new version again. A page removed from the database, archived or deleted does not automatically withdraw its published article.
+
+### Private entries and taking an entry down
+
+Set **Visibility** to **Private** to keep an entry off the website. It still goes through the same validation, review, merge and Discord reporting, and finishes as **Published (Private)** with an empty Published URL.
+
+- To take a published entry down, set Visibility to **Private**, then select **Ready to update**.
+- To show it again, set Visibility to **Public**, then select **Ready to update**. It returns at its original URL.
+- Changing Visibility alone does nothing; like every other edit it takes effect only through a Ready status.
+- Deleting, archiving or moving the Notion page still does not remove the article. Use Visibility instead.
+
+Private does not mean secret: the converted Markdown and media are stored in the public GitHub repository and remain readable there. Do not submit confidential material.
+
+The database owner adds the **Visibility** select (options Public, Private) and the two Status options **Published (Public)** and **Published (Private)**. A Status property of Notion's *status* type needs those options created in the Notion interface. The earlier **Published** option can remain for old pages.
 
 GitHub polls approximately every five minutes; scheduled jobs can be delayed. The owner can run **Import Notion devlogs** manually on main. There is no Discord writing panel, export upload or second publish confirmation.
 
