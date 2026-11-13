@@ -203,6 +203,8 @@ Keep both webhooks in the protected, main-only `devlog-publishing` GitHub Enviro
 
 ## Development and verification
 
+Engineering skill configuration is indexed in [AGENTS.md](AGENTS.md). Edit `docs/agents/*.md` to update tracker, triage, or domain documentation conventions.
+
 ```sh
 npm ci
 npm test
