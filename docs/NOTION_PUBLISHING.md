@@ -4,8 +4,8 @@ Write in Notion; Discord verifies your identity and reports the result. The impo
 
 ## One-time author setup
 
-1. Run `/devlog-access register` in Discord.
-2. Run `/devlog-access link-notion`, open the private link and choose the configured team workspace. The callback completes binding automatically.
+1. Run `/devlog-access guide` in Discord and open the bot's DM.
+2. Press **用 Notion 投稿**, open the private link and choose the configured team workspace. The callback completes binding automatically.
 3. Check `/devlog-access status`. Names, avatars and public connections still come from Discord and optional GitHub. Notion account IDs are private.
 
 Only an eligible registered member can submit. Every selected coauthor must also link their Notion account. The actual submitting person is verified from Notion's last editor, not the editable Authors field. Finish typing before selecting a Ready status. GitHub account binding is still required for native Git submissions.
