@@ -5,7 +5,6 @@ discipline: "tech"
 authors: ["author-1225896471812112426"]
 summary: "A short technical check that uploaded clips, YouTube embeds, 3D models and Unreal Blueprint graphs render on the live journal."
 tags: [Publishing, Tooling]
-visibility: private
 draft: false
 ---
 
