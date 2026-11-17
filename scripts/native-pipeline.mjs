@@ -342,7 +342,7 @@ export async function reportDeployment() {
     const url = new URL(basePath + '/posts/' + post.slug.split('/').map(encodeURIComponent).join('/') + '/', site).href;
     if (context.source?.path === change.path && change.kind !== 'unpublish') importedUrl = url;
     const cover = post.data.cover?.startsWith('/media/') ? new URL(basePath + post.data.cover, site).href : undefined;
-    await send(context, kind, [], { scope: change.id, authors: change.authors, title: post.data.title,
+    await send(context, kind, [], { scope: change.id, authors: change.authors, title: post.data.title, discipline: post.data.discipline, tags: post.data.tags,
       ...(change.kind === 'unpublish' ? { summary: '此日志已从公开网站移除。' } : { url, cover, summary: post.data.summary }) });
   }
   if (context.source) {

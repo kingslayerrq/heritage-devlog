@@ -34,7 +34,7 @@ const notionBlockLink = value => {
   } catch { return null; }
 };
 const githubLink = (repo, path = '') => 'https://github.com/' + repo + path;
-export function makeReport({ kind, people = [], actorId, actorAuthor, actorLogin, authors = [], title, issues = [], repo, revision, pr, runId, url, summary, cover, sourceUrl, sourceOnly = false, owner = false }) {
+export function makeReport({ kind, people = [], actorId, actorAuthor, actorLogin, authors = [], title, issues = [], repo, revision, pr, runId, url, summary, cover, discipline, tags = [], sourceUrl, sourceOnly = false, owner = false }) {
   if (!labels[kind] || !/^[\w.-]+\/[\w.-]+$/.test(repo || '') || !/^[a-f0-9]{40}$/.test(revision || '')) throw new Error('Invalid report metadata.');
   if (sourceUrl) { const source = new URL(sourceUrl); if (source.protocol !== 'https:' || !/(^|\.)notion\.(so|site)$/.test(source.hostname) || source.username || source.password || source.search || source.hash) throw new Error('Invalid Notion source link.'); }
   const [label, color] = labels[kind];
@@ -42,9 +42,12 @@ export function makeReport({ kind, people = [], actorId, actorAuthor, actorLogin
   const author = people.find(person => person.author === authors[0]) || people.find(person => actorAuthor ? person.author === actorAuthor : Number(person.githubId) === Number(actorId));
   const errors = issues.filter(issue => issue.severity === 'error').length;
   const warnings = issues.filter(issue => issue.severity === 'warning').length;
-  const fields = [
+  // Publication and edit reports read as an article card: linked title, summary, credits, cover, topics.
+  const card = ['publish', 'edit'].includes(kind);
+  const commit = '[' + revision.slice(0, 7) + '](' + githubLink(repo, '/commit/' + revision) + ')';
+  const fields = card ? [] : [
     { name: '提交者', value: markdown(actorId === 0 && !actorAuthor && actorLogin === 'Notion import' ? 'Notion 导入' : actorLogin || '自动发布'), inline: true },
-    { name: '版本', value: sourceOnly && sourceUrl ? '[Notion 来源](' + sourceUrl + ')' : '[' + revision.slice(0, 7) + '](' + githubLink(repo, '/commit/' + revision) + ')', inline: true },
+    { name: '版本', value: sourceOnly && sourceUrl ? '[Notion 来源](' + sourceUrl + ')' : commit, inline: true },
   ];
   if (issues.length) fields.push({ name: '检查结果', value: errors + ' 个错误 · ' + warnings + ' 个提醒', inline: true });
   for (const sourceIssue of issues.slice(0, 6)) {
@@ -57,16 +60,20 @@ export function makeReport({ kind, people = [], actorId, actorAuthor, actorLogin
   }
   if (issues.length > 6) fields.push({ name: '更多详情', value: '还有 ' + (issues.length - 6) + ' 项，请打开检查记录查看完整结果。' });
   const links = [
+    url ? '[阅读日志](' + new URL(url).href + ')' : null,
     sourceUrl ? '[Notion 来源](' + sourceUrl + ')' : null,
     pr ? '[查看修改](' + githubLink(repo, '/pull/' + pr) + ')' : null,
+    card && !(sourceOnly && sourceUrl) ? commit : null,
     runId ? '[检查记录](' + githubLink(repo, '/actions/runs/' + runId) + ')' : null,
-    url ? '[阅读日志](' + new URL(url).href + ')' : null,
   ].filter(Boolean).join(' · ');
   fields.push({ name: '链接', value: links || '[查看版本](' + githubLink(repo, '/commit/' + revision) + ')' });
-  const embed = { title: label + (title ? ' · ' + text(title, 100) : ''), color,
+  const topics = card ? [typeof discipline === 'string' && discipline ? discipline.charAt(0).toUpperCase() + discipline.slice(1) : null,
+    ...(Array.isArray(tags) ? tags : []).filter(tag => typeof tag === 'string' && tag.trim()).slice(0, 6)].filter(Boolean).map(topic => text(topic, 40)) : [];
+  const credited = card ? authors.map(id => people.find(person => person.author === id)).filter(Boolean) : [];
+  const embed = { title: label + (title ? ' · ' + text(title, 100) : ''), ...(card && url ? { url: new URL(url).href } : {}), color,
     description: markdown(summary || (kind === 'policy' ? '请撤回列出的非内容文件修改，再推送分支重试。分支内容未被自动删除或回滚。' : ['publish', 'edit'].includes(kind) ? '此版本已完成网站部署。' : kind === 'private' ? '此日志已通过检查并合并，但设为私密，不会出现在网站上。公开仓库中仍可看到原文件。' : '错误会阻止发布；提醒不会阻止发布。'), 500),
-    fields, footer: { text: 'Heritage · 开发日志' }, timestamp: new Date().toISOString() };
-  if (author) embed.author = { name: text(author.name, 100), ...(author.avatarUrl && /^https:\/\/cdn\.discordapp\.com\//.test(author.avatarUrl) ? { icon_url: author.avatarUrl } : {}) };
+    fields, footer: { text: ['Heritage · 开发日志', ...topics].join(' · ') }, timestamp: new Date().toISOString() };
+  if (author) embed.author = { name: credited.length > 1 ? text(credited.map(person => person.name).join(', '), 256) : text(author.name, 100),...(author.avatarUrl && /^https:\/\/cdn\.discordapp\.com\//.test(author.avatarUrl) ? { icon_url: author.avatarUrl } : {}) };
   if (cover && url) { const image = new URL(cover, url); if (image.origin === new URL(url).origin && /\.(png|jpe?g|webp|gif)$/i.test(image.pathname)) embed.image = { url: image.href }; }
   return { content: recipients.map(id => '<@' + id + '>').join(' '), embeds: [embed], allowed_mentions: { parse: [], users: recipients } };
 }

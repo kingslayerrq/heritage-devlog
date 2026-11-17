@@ -29,7 +29,7 @@ test('all report kinds preserve authored text and identities while localizing ge
     assert.ok(embed.title.endsWith('Original English Title'));
     assert.equal(embed.description, 'The original English article summary.');
     assert.equal(embed.author.name, people[0].name);
-    assert.equal(embed.fields[0].value, people[0].name);
+    if (!['publish', 'edit'].includes(kind)) assert.equal(embed.fields[0].value, people[0].name);
     assert.ok(embed.fields.some(field => field.name.includes(path + ':7')));
     assert.match(details(payload), /文章正文为空/);
     assert.match(details(payload), /请修正此 Notion 内容块/);
@@ -38,6 +38,29 @@ test('all report kinds preserve authored text and identities while localizing ge
     assert.ok(!JSON.stringify(payload).includes('The article body is empty'));
     assert.deepEqual(payload.allowed_mentions, { parse: [], users: [people[0].discord] });
   }
+});
+
+test('publication and edit reports are article cards; alerts keep submitter and revision fields', () => {
+  const url = 'https://kingslayerrq.github.io/heritage-devlog/posts/2026-11-12-English-title/';
+  const team = [...people, { author: 'artist', discord: '223456789012345678', name: 'Second Author', active: true }];
+  for (const kind of ['publish', 'edit']) {
+    const embed = report({ kind, url, pr: 7, people: team, authors: ['writer', 'artist'], discipline: 'tech', tags: ['Playtesting', '@everyone', 7],
+      cover: url + '../../media/cover.png', sourceUrl: undefined }).embeds[0];
+    assert.equal(embed.url, url);
+    assert.equal(embed.description, 'The original English article summary.');
+    assert.equal(embed.author.name, 'English Display Name, Second Author');
+    assert.equal(embed.footer.text, 'Heritage · 开发日志 · Tech · Playtesting · @​everyone');
+    assert.equal(embed.image.url, 'https://kingslayerrq.github.io/heritage-devlog/media/cover.png');
+    assert.deepEqual(embed.fields.map(field => field.name), ['链接']);
+    assert.ok(embed.fields[0].value.startsWith('[阅读日志](' + url + ')'));
+    assert.ok(embed.fields[0].value.includes('/pull/7') && embed.fields[0].value.includes('[' + revision.slice(0, 7) + ']'));
+  }
+  const removed = report({ kind: 'edit', summary: '此日志已从公开网站移除。' }).embeds[0];
+  assert.equal(removed.url, undefined);
+  const alert = report({ kind: 'validation', url, discipline: 'tech', tags: ['Playtesting'] }).embeds[0];
+  assert.equal(alert.url, undefined);
+  assert.equal(alert.footer.text, 'Heritage · 开发日志');
+  assert.deepEqual(alert.fields.slice(0, 2).map(field => field.name), ['提交者', '版本']);
 });
 
 test('every literal converter diagnostic has a specific Chinese translation', () => {
