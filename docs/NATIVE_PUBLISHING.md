@@ -161,6 +161,9 @@ branch therefore does not create empty PRs or repeated setup-error reports.
 
 Chinese embeds contain severity color/icon, title, submitting person, revision,
 error/warning counts, file/line and correction guidance, plus PR/run/live links.
+Publication and edit reports are article cards instead: the title links to the
+article, the summary is the description, all credited authors are named, the cover
+is shown, discipline and tags sit in the footer, and PR/revision/run links share one line.
 All automatic webhook explanations, fixes and workflow labels use Chinese.
 Article titles, summaries, quoted source text, filenames, identifiers and URLs keep
 their original wording; this does not translate the English-first site or content.
