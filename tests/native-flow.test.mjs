@@ -1,3 +1,4 @@
+import { cardFlowFixture } from './card-flow-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -38,27 +39,22 @@ test('fixture pipeline rejects invalid content, publishes a corrected branch, th
     const validPost = text => '---\ntitle: 测试日志\ndate: 2026-11-11\ndiscipline: tech\nauthors: [fixture-writer, fixture-artist]\nsummary: 本地端到端测试\ntags: [测试]\n---\n\n' + text + '\n';
     const commit = text => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, text); git('add', path); git('commit', '-m', 'fixture content'); head = git('rev-parse', 'HEAD'); };
     const eventFile = join(fixture, 'request.json');
-    const events = [], checks = [], receipts = new Map();
+    const events = [], checks = [];
     const pull = () => ({ number: 1, state: pullOpen ? 'open' : 'closed', draft: false, head: { sha: head, ref: branch, repo: { full_name: repo } }, base: { ref: 'main', sha: main, repo: { full_name: repo } }, ...(mergedPull || {}) });
     const result = (data, status = 200) => new Response(JSON.stringify(data), { status });
+    const cards = cardFlowFixture((url, body) => events.push({ url, body }));
     globalThis.fetch = async (input, options = {}) => {
       const url = new URL(input);
       const body = options.body ? JSON.parse(options.body) : {};
+      const cardResult = cards.fetch(url, options.method, body);
+      if (cardResult) return cardResult;
       if (url.hostname === 'fixture.invalid') {
         if (body.action === 'people') return result({ people });
-        if (body.action === 'reserve-report') {
-          const old = receipts.get(body.key);
-          if (old) return result({ state: old.state, messageId: old.messageId });
-          receipts.set(body.key, { state: 'pending' }); return result({ state: 'reserved', reservation: 'f'.repeat(64) });
-        }
-        if (body.action === 'complete-report') { receipts.set(body.key, { state: body.outcome, messageId: body.messageId }); return result({ state: body.outcome }); }
-      }
-      if (url.hostname === 'discord.com') {
-        events.push({ url: url.pathname, body });
-        return result({ id: String(423456789012345678n + BigInt(events.length)) });
+
       }
       if (url.hostname !== 'api.github.com') throw new Error('Unexpected network request: ' + url.hostname);
       const route = url.pathname.replace('/repos/' + repo, '');
+      if (route === '/actions/runs/42') return result({ id:42, name:'Fixture', created_at:'2026-11-11T01:00:00Z' });
       if (route === '/actions/runs/1') return result({ event: 'push', path: '.github/workflows/check.yml', repository: { full_name: repo }, head_repository: { full_name: repo }, head_branch: branch, head_sha: head, actor: { id: 123, login: 'fixture-writer' } });
       if (route === '/actions/runs') return result({ workflow_runs: [{ event: 'push', path: '.github/workflows/check.yml', repository: { id: 1 }, head_repository: { id: 1 }, head_branch: branch, head_sha: head, actor: { id: 123, login: 'fixture-writer' } }] });
       if (route.startsWith('/git/ref/heads/')) return result({ object: { sha: decodeURIComponent(route) === '/git/ref/heads/main' ? main : head } });
@@ -134,6 +130,8 @@ test('fixture pipeline rejects invalid content, publishes a corrected branch, th
     process.env.DEPLOY_RESULT = 'success';
     await pipeline.reportDeployment();
     const published = events.filter(event => event.body.embeds[0].title.includes('已发布'));
+    const resolved = [...cards.messages.values()].find(msg => msg.embeds[0].title.includes('已解决'));
+    assert.ok(resolved?.embeds[0].fields[0].value.includes('查看发布消息'));
     assert.equal(published.length, 1);
     assert.deepEqual(published[0].body.allowed_mentions.users, [people[0].discord, people[1].discord]);
     await pipeline.reportDeployment();

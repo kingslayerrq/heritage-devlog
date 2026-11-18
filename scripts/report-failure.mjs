@@ -1,7 +1,7 @@
 // Deliberately imports no npm packages: it also reports dependency-install failures.
 import { readFileSync, existsSync } from 'node:fs';
 import { createIntegration, requirePeople, shaPattern } from './native-api.mjs';
-import { makeReport, deliverReport } from './report-discord.mjs';
+import { warnItems } from './report-items.mjs';
 
 export async function failureReport({ env = process.env, integration = createIntegration(), fetch = globalThis.fetch } = {}) {
   if (existsSync('.native/reported.json') && ['validation', 'policy', 'deployment'].includes(JSON.parse(readFileSync('.native/reported.json', 'utf8')).kind)) return { skipped: true };
@@ -15,11 +15,10 @@ export async function failureReport({ env = process.env, integration = createInt
   const people = requirePeople((await integration({ action: 'people' })).people);
   const actor = context?.actor || event.workflow_run?.actor || event.sender || {};
   const kind = 'deployment', scope = 'pipeline:' + (env.REPORT_PHASE || env.GITHUB_JOB || 'setup');
-  const payload = makeReport({ kind, people, repo: env.GITHUB_REPOSITORY, revision: head, actorId: actor.id, actorAuthor: context?.actorAuthor, actorLogin: actor.login, sourceUrl: context?.source?.sourceUrl,
-    pr: context?.pr, authors: context?.authors || [], runId: Number(env.GITHUB_RUN_ID), owner: true,
+  return warnItems({ integration, webhook: env.DISCORD_DEVLOG_ALERTS_WEBHOOK, fetch,
+    context: { ...context, workflow:env.GITHUB_WORKFLOW, repo: env.GITHUB_REPOSITORY, head, actor, people, runId: Number(env.GITHUB_RUN_ID) }, kind, scope,
     issues: [{ severity: 'error', path: '', line: 1, message: '自动发布流程未能完成此阶段：' + (env.REPORT_PHASE || env.GITHUB_JOB || 'setup'),
       fix: '打开检查记录查看具体失败原因。此报告不表示文章已经上线；修复配置或错误后重新运行。' }] });
-  return deliverReport({ integration, webhook: env.DISCORD_DEVLOG_ALERTS_WEBHOOK, repo: env.GITHUB_REPOSITORY, kind, revision: head, scope, payload, fetch });
 }
 if (process.argv[1]?.replace(/\\/g, '/').endsWith('/report-failure.mjs')) {
   try { await failureReport(); }

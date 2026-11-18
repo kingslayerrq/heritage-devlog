@@ -164,7 +164,7 @@ git push -u origin devlog/your-topic
 
 The installed pre-push check catches local content errors. GitHub creates or updates a PR, validates content and identity, builds, then automatically merges and deploys valid work. Discord receives the result. Warnings do not block otherwise valid content; fix errors and push again to the same branch.
 
-For an edit, update `main`, create a new branch, and modify the original article/media. Keep the filename and URL stable. A successful deployment produces an edit report. Moving a draft to public produces a first-publication report; rerunning the same report does not send duplicate notifications.
+For an edit, update `main`, create a new branch, and modify the original article/media. Keep the filename, optional `entryId` and URL stable. The first successful publication creates a Discord card. Later deployments update that card and add a revision to its thread. The original warning card points to the matching success message when its publication succeeds.
 
 **This repository is public.** `draft: true` hides an article from the site, not its source from GitHub. Comments are public too. Do not commit private material, credentials, or `internal` articles.
 

@@ -1,3 +1,4 @@
+import { cardFlowFixture } from './card-flow-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -33,15 +34,18 @@ test('Discord-only Notion content publishes an image, edits its stable URL, and 
     git('config', 'core.autocrlf', 'false'); git('config', 'core.hooksPath', '/dev/null'); git('remote', 'add', 'origin', fixture);
     git('add', '.'); git('commit', '-m', 'trusted site fixture');
     let main = git('rev-parse', 'HEAD'), previous = main, current, checkId = 0, sourceChanged = false, number = 0;
-    const records = new Map(), pulls = new Map(), events = [], checks = [], results = [], receipts = new Map(), requests = [];
+    const records = new Map(), pulls = new Map(), events = [], checks = [], results = [], requests = [];
     const eventFile = join(fixture, 'request.json');
     const response = (body, status = 200) => new Response(JSON.stringify(body), { status });
     const pullFor = branch => {
       const pull = pulls.get(branch);
       return pull && { ...pull, base: { ref: 'main', sha: main, repo: { full_name: repo } } };
     };
+    const cards = cardFlowFixture((url, body) => events.push(body));
     globalThis.fetch = async (input, options = {}) => {
       const url = new URL(input), body = options.body ? JSON.parse(options.body) : {};
+      const cardResult = cards.fetch(url, options.method, body);
+      if (cardResult) return cardResult;
       if (url.hostname === 'fixture.invalid') {
         requests.push(body);
         if (body.action === 'people') return response({ people });
@@ -58,17 +62,12 @@ test('Discord-only Notion content publishes an image, edits its stable URL, and 
           else throw new Error('Unexpected result ' + body.outcome);
           return response({ state: reserved.state });
         }
-        if (body.action === 'reserve-report') {
-          const old = receipts.get(body.key);
-          if (old) return response({ state: old.state, messageId: old.messageId });
-          receipts.set(body.key, { state: 'pending' }); return response({ state: 'reserved', reservation: 'f'.repeat(64) });
-        }
-        if (body.action === 'complete-report') { receipts.set(body.key, { state: body.outcome, messageId: body.messageId }); return response({ state: body.outcome }); }
+
         throw new Error('Unexpected integration action ' + body.action);
       }
-      if (url.hostname === 'discord.com') { events.push(body); return response({ id: String(423456789012345678n + BigInt(events.length)) }); }
       if (url.hostname !== 'api.github.com') throw new Error('Unexpected network request ' + url.hostname);
       const route = url.pathname.replace('/repos/' + repo, '');
+      if (route === '/actions/runs/42') return response({ id:42, name:'Fixture', created_at:'2026-11-11T01:00:00Z' });
       if (route.startsWith('/git/ref/heads/')) {
         const branch = decodeURIComponent(route.slice('/git/ref/heads/'.length));
         return response({ object: { sha: branch === 'main' ? main : records.get(branch.slice('notion/'.length))?.head } });
