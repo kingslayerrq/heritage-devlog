@@ -6,7 +6,7 @@ import { createGithub, createIntegration, requirePeople, OWNER_ID, shaPattern } 
 import { tree } from './native-git.mjs';
 import { compileNotionSnapshot, stableStringify } from './notion-content.mjs';
 import { validateSource, validateManifest, verifyImportTree, authorizeImport, gitBytes, hashBytes } from './notion-provenance.mjs';
-import { deliverReport, makeReport } from './report-discord.mjs';
+import { warnItems } from './report-items.mjs';
 
 const git = (root, ...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 const issue = (code, message) => ({ severity: 'error', code, path: '', line: 1, message,
@@ -100,10 +100,10 @@ export async function importNext({ root = process.cwd(), github = createGithub()
     if (report) return report({ snapshot, kind, issues, head, people });
     const revision = head || snapshot.sourceDigest.slice(0, 40);
     const actor = people.find(person => person.author === snapshot.actorAuthor);
-    const payload = makeReport({ kind, people, repo, revision, actorId: 0, actorAuthor: snapshot.actorAuthor, actorLogin: actor?.name,
-      authors: snapshot.metadata?.authors || snapshot.authors || [], sourceUrl: snapshot.sourceUrl, sourceOnly: !head,
-      runId: Number(process.env.GITHUB_RUN_ID), title: snapshot.metadata?.title, issues });
-    await deliverReport({ integration, webhook: process.env.DISCORD_DEVLOG_ALERTS_WEBHOOK, repo, kind, revision, scope: 'notion:' + snapshot.id, payload });
+    const context = { repo, head: revision, people, actor: { id: 0, login: actor?.name }, actorAuthor: snapshot.actorAuthor,
+      source: snapshot, sourceOnly: !head, authors: snapshot.metadata?.authors || snapshot.authors || [],
+      runId: Number(process.env.GITHUB_RUN_ID), title: snapshot.metadata?.title };
+    await warnItems({ integration, webhook: process.env.DISCORD_DEVLOG_ALERTS_WEBHOOK, context, kind, issues, scope: 'notion:' + snapshot.id });
     mkdirSync(resolve(root, '.native'), { recursive: true });
     writeFileSync(resolve(root, '.native/reported.json'), JSON.stringify({ head: process.env.GITHUB_SHA || revision, kind }));
   };

@@ -7,7 +7,8 @@ import { createGithub, createIntegration, requirePeople, verifiedActor, OWNER_ID
 import { inspectCandidate, materializeProject, changedPosts, authorIds, safePath } from './native-git.mjs';
 import { validateContent } from './content-policy.mjs';
 import { syncAuthorProfiles } from './content-profiles.mjs';
-import { deliverReport, makeReport } from './report-discord.mjs';
+import { makeReport } from './report-discord.mjs';
+import { articleWarningItem, publishItem, removalReport, resolveItem, warnItems, workflowItem } from './report-items.mjs';
 import { authorizeImport, verifyImportTree } from './notion-provenance.mjs';
 
 const root = process.cwd();
@@ -18,6 +19,14 @@ const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8'
 const event = () => json(process.env.GITHUB_EVENT_PATH);
 const issue = (code, message, fix) => ({ severity: 'error', code, path: '', line: 1, message, fix });
 const fetchRevision = sha => { if (!shaPattern.test(sha || '')) throw new Error('Invalid commit.'); git('fetch', '--no-tags', 'origin', sha); };
+async function reportingRun(api) {
+  const runId = Number(process.env.GITHUB_RUN_ID);
+  if (!Number.isSafeInteger(runId) || runId < 1) throw new Error('Invalid workflow run ID.');
+  const run = await api('GET', '/actions/runs/' + runId);
+  const runCreatedAt = Date.parse(run.created_at);
+  if (run.id !== runId || !Number.isSafeInteger(runCreatedAt)) throw new Error('Cannot verify the reporting run creation time.');
+  return { runId, runCreatedAt, workflow:process.env.GITHUB_WORKFLOW || run.name };
+}
 export async function actorForHead(api, head, branch) {
   const result = await api('GET', '/actions/runs?event=push&head_sha=' + head + '&per_page=100');
   const run = result.workflow_runs?.find(run => run.event === 'push' && run.head_sha === head && run.head_branch === branch &&
@@ -56,13 +65,22 @@ export async function assertMergeCurrent({ api, context, appId }) {
 }
 async function send(context, kind, issues = [], extra = {}) {
   const integration = createIntegration();
-  const payload = makeReport({ ...context, revision: context.head, actorId: context.actor.id, actorLogin: context.actor.login, kind, issues,
-    authors: context.authors || [], actorAuthor: context.actorAuthor, sourceUrl: context.source?.sourceUrl, ...extra });
-  const delivered = await deliverReport({ integration, webhook: ['publish', 'edit'].includes(kind) ? process.env.DISCORD_DEVLOG_WEBHOOK : process.env.DISCORD_DEVLOG_ALERTS_WEBHOOK,
-    repo: context.repo, kind, revision: context.head, scope: extra.scope || 'pr:' + context.pr, payload });
+  let delivered;
+  if (['publish', 'edit', 'private'].includes(kind)) {
+    const payload = extra.removed ? removalReport(context, extra.removed) : makeReport({ ...context, revision: context.head, actorId: context.actor.id, actorLogin: context.actor.login,
+      kind, sourceUrl: context.source?.path === extra.path ? context.source?.sourceUrl : undefined, ...extra });
+    const previous = git('log', '--first-parent', '-15', '--format=%H', context.head, '--', extra.path).split(/\s+/);
+    const evidence = context.reviewByPath?.[extra.path];
+    delivered = await publishItem({ integration, webhook: kind === 'private' ? process.env.DISCORD_DEVLOG_ALERTS_WEBHOOK : process.env.DISCORD_DEVLOG_WEBHOOK,
+      context:{ ...context, source:undefined, ...evidence }, kind, item: extra.scope, payload, older: [context.base, ...previous] });
+  } else {
+    await warnItems({ integration, webhook: process.env.DISCORD_DEVLOG_ALERTS_WEBHOOK, context, kind, issues, scope: extra.scope || 'pr:' + context.pr });
+  }
   save('.native/reported.json', { kind, head: context.head });
   return delivered;
 }
+const articleReferences = changes => changes.map(({ id, path, authors, after, before }) =>
+  ({ id, path, authors, title: (after || before)?.data.title }));
 async function finishNotion(context, outcome, extra = {}) {
   if (!context.source) return;
   return createIntegration()({ action: 'notion-result', id: context.source.id, head: context.source.head, outcome, ...extra });
@@ -117,13 +135,14 @@ export async function prepare() {
   if (!pull) pull = await api('POST', '/pulls', { title: '开发日志 · ' + request.branch.slice(0, 100), head: request.branch, base: 'main',
     body: 'Discord 绑定作者的内容发布请求。内容检查通过后自动合并；发布结果会报告到 Discord。' });
   const context = { repo, base, head: request.head, branch: request.branch, actor: request.actor, pr: pull.number,
-    people, runId: Number(process.env.GITHUB_RUN_ID), authors: [], accepted: false,
+    people, ...await reportingRun(api), authors: [], accepted: false,
     ...(imported ? { source: imported.source, actorAuthor: imported.actorAuthor } : {}) };
   const started = await api('POST', '/check-runs', { name: CHECK_NAME, head_sha: context.head, status: 'in_progress',
     external_id: context.base + ':' + context.head, details_url: 'https://github.com/' + repo + '/actions/runs/' + context.runId });
   context.checkId = started.id;
   const inspected = inspectCandidate({ root, base, head: context.head, actorId: context.actor.id, author: imported?.author || verifiedActor(people, context.actor.id) });
   const changes = changedPosts(root, base, context.head);
+  context.articles = articleReferences(changes);
   context.authors = [...new Set(changes.flatMap(change => change.authors))];
   context.affectedPaths = [...new Set([...inspected.changes.map(change => change.path), ...changes.map(change => change.path)])];
   // Historical credit remains visible; new credits must refer to currently eligible members.
@@ -249,12 +268,12 @@ export async function previousDeployment(api, head) {
   throw new Error('Could not establish the previous successful deployment; reconcile before publishing.');
 }
 /** GitHub may briefly omit a just-merged commit's PR association. Retry reads only. */
-export async function mergedPullForDeployment({ api, repo, head, pause = (ms, signal) => delayFor(ms, undefined, { signal }), signal }) {
+export async function mergedPullForDeployment({ api, repo, head, pause = (ms, signal) => delayFor(ms, undefined, { signal }), signal, delays = [0, 2000, 4000, 8000, 12000] }) {
   if (!shaPattern.test(head || '') || !/^[\w.-]+\/[\w.-]+$/.test(repo || '')) throw new Error('Invalid deployment receipt request.');
   const exactReceipt = pull => pull?.state === 'closed' && Boolean(pull.merged_at) && pull.merge_commit_sha === head &&
     pull.base?.ref === 'main' && pull.base.repo?.full_name === repo && pull.head?.repo?.full_name === repo &&
     shaPattern.test(pull.head.sha || '') && typeof pull.head.ref === 'string' && pull.head.ref.length > 0;
-  for (const delay of [0, 2000, 4000, 8000, 12000]) {
+  for (const delay of delays) {
     if (signal?.aborted) throw new Error('Merged PR lookup timed out; retry after GitHub finishes associating the commit.');
     if (delay) await pause(delay, signal);
     if (signal?.aborted) throw new Error('Merged PR lookup timed out; retry after GitHub finishes associating the commit.');
@@ -269,6 +288,38 @@ export async function mergedPullForDeployment({ api, repo, head, pause = (ms, si
     }
   }
   return null;
+}
+
+/** Find the reviewed change whose article/media is actually in this deployment, newest first. */
+async function deployedArticleReviews({ context, previous, api }) {
+  const reviews = {}, todo = new Set(context.articles.map(item => item.path));
+  const commits = previous ? git('rev-list', '--first-parent', '--max-count=32', previous + '..' + context.head).split(/\s+/) : [context.head];
+  for (const sha of commits) {
+    if (!todo.size || !shaPattern.test(sha)) break;
+    const parents = git('rev-list', '--parents', '-n', '1', sha).split(' ');
+    const articles = parents[1] ? changedPosts(root, parents[1], sha) : [];
+    const changed = articles.filter(change => todo.has(change.path));
+    if (!changed.length) continue;
+    for (const change of changed) todo.delete(change.path);
+    let pr = context.pr, source = context.source, reviewHead = context.reviewHead;
+    if (sha !== context.head) {
+      try {
+        const receipt = await mergedPullForDeployment({ api, repo:context.repo, head:sha, delays:[0] });
+        if (!receipt) continue;
+        pr = receipt.number; reviewHead = receipt.head.sha;
+        source = receipt.head.ref.startsWith('notion/') ? (await authorizeImport({ integration:createIntegration(), root,
+          branch:receipt.head.ref, head:receipt.head.sha, phase:'deploy', fetchRevision })).source : null;
+        if (source) verifyImportTree(root, source, { revision:context.head, exactDiff:false });
+      } catch {
+        console.log('Could not confirm the earlier review for ' + sha + '. Its alerts remain open.');
+        continue;
+      }
+    }
+    const evidence = { pr, reviewHead, singleArticle:articles.length === 1, ...(source ? { source: {
+      pageId:source.pageId, id:source.id, head:source.head, sourceDigest:source.sourceDigest, createdAt:source.createdAt } } : {}) };
+    for (const change of changed) reviews[change.path] = evidence;
+  }
+  return reviews;
 }
 export async function prepareDeployment() {
   const source = event(), { api, repo } = createGithub({ token: process.env.GITHUB_TOKEN });
@@ -297,9 +348,11 @@ export async function prepareDeployment() {
   // Empty tree makes first deployment a first-publication event for every public post.
   const base = previous || git('hash-object', '-t', 'tree', '-w', '--stdin');
   if (previous) fetchRevision(previous);
-  const context = { repo, head, base, actor, pr, people, runId: Number(process.env.GITHUB_RUN_ID),
+  const context = { repo, head, base, actor, pr, reviewHead:merged?.head.sha, people, ...await reportingRun(api),
     authors: [...new Set(changedPosts(root, base, head).flatMap(change => change.authors))],
     ...(imported ? { source: imported.source, actorAuthor: imported.actorAuthor } : {}) };
+  context.articles = articleReferences(changedPosts(root, base, head));
+  context.reviewByPath = await deployedArticleReviews({ context, previous, api });
   save('.native/deploy.json', context);
   syncAuthorProfiles({ root, people });
   const validation = validateContent({ root, people });
@@ -328,22 +381,52 @@ export async function reportDeployment() {
   if (site.protocol !== 'https:') throw new Error('Public site URL must use HTTPS.');
   const basePath = (process.env.BASE_PATH || '/heritage-devlog').replace(/\/$/, '');
   let importedUrl, importedPrivate = false;
+  const successes = [];
   for (const change of changedPosts(root, context.base, context.head)) {
     if (change.private) {
       if (context.source?.path === change.path) importedPrivate = true;
       // Leaving the public site is announced by the existing removal report below.
       if (change.kind !== 'unpublish') {
-        await send(context, 'private', [], { scope: change.id, authors: change.authors, title: change.after.data.title });
+        const success = await send(context, 'private', [], { scope: change.id, path: change.path, authors: change.authors, title: change.after.data.title });
+        if (success?.state === 'sent' && success.preserveWarning && success.successUrl) {
+          const evidence = context.reviewByPath?.[change.path];
+          if (evidence) await resolveItem({ integration:createIntegration(), webhook:process.env.DISCORD_DEVLOG_ALERTS_WEBHOOK,
+            context:{ ...context, source:undefined, ...evidence }, item:articleWarningItem(change.id), success, privateSuccess:true });
+        }
         continue;
       }
     }
     if (!['publish', 'edit', 'unpublish'].includes(change.kind)) continue;
-    const post = change.after || change.before, kind = change.kind === 'unpublish' ? 'edit' : change.kind;
+    const post = change.kind === 'unpublish' ? change.before : change.after, kind = change.kind === 'unpublish' ? 'edit' : change.kind;
     const url = new URL(basePath + '/posts/' + post.slug.split('/').map(encodeURIComponent).join('/') + '/', site).href;
     if (context.source?.path === change.path && change.kind !== 'unpublish') importedUrl = url;
     const cover = post.data.cover?.startsWith('/media/') ? new URL(basePath + post.data.cover, site).href : undefined;
-    await send(context, kind, [], { scope: change.id, authors: change.authors, title: post.data.title, discipline: post.data.discipline, tags: post.data.tags,
-      ...(change.kind === 'unpublish' ? { summary: '此日志已从公开网站移除。' } : { url, cover, summary: post.data.summary }) });
+    const success = await send(context, kind, [], { scope: change.id, path: change.path, authors: change.authors, title: post.data.title, discipline: post.data.discipline, tags: post.data.tags,
+      ...(change.kind === 'unpublish' ? { removed:change.before } : { url, cover, summary: post.data.summary }) });
+    if (success?.state === 'sent') successes.push({ change, success:{ ...success, withdrawn:change.kind === 'unpublish' } });
+  }
+  const integration = createIntegration(), webhook = process.env.DISCORD_DEVLOG_ALERTS_WEBHOOK;
+  const pulls = new Map();
+  for (const { change, success } of successes) {
+    const evidence = context.reviewByPath?.[change.path];
+    if (!evidence) continue;
+    const review = { ...context, source:undefined, ...evidence };
+    await resolveItem({ integration, webhook, context:review, item:articleWarningItem(change.id), success });
+    if (!review.source && review.pr) {
+      if (!pulls.has(review.pr)) pulls.set(review.pr, { review, messages:[] });
+      pulls.get(review.pr).messages.push(success);
+    }
+  }
+  for (const [pr, { review, messages }] of pulls) {
+    await resolveItem({ integration, webhook, context:review, item:'pr:' + pr, success:messages[0], messages });
+  }
+  if (successes.length) {
+    const messages = successes.map(entry => entry.success);
+    // Only the very same deployment run may close a site-wide setup or validation failure.
+    const workflow = { ...context, source:undefined, pr:undefined };
+    for (const scope of ['deploy', 'deploy-validation', 'pipeline:prepare']) {
+      await resolveItem({ integration, webhook, context:workflow, item:workflowItem(workflow, scope), success:messages[0], messages });
+    }
   }
   if (context.source) {
     if (!importedUrl && !importedPrivate) throw new Error('The deployed Notion article was not found in the publication changes.');

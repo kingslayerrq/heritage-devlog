@@ -85,7 +85,7 @@ The importer compares existing managed file hashes before an update. Manual Git 
 
 A merged Git revision and a live Pages deployment are separate states. A failed deployment does not erase the successful merge or cause another import: the importer recovers the same branch/PR, proves the merge and checks actual successful Pages deployments. An older import included unchanged in a later deployment can complete its receipt. If a newer version supersedes it before going live, only the version actually deployed is reported as published.
 
-Discord errors, warnings, publishes and edits use existing durable delivery reservations and explicit member mention allowlists. Reports include the source link and affected people; successful reports wait for deployment. Timeouts or missing Discord receipts do not automatically resend. Use the existing report recovery procedure after inspecting Discord.
+Discord groups warnings for the same Notion page, including errors found before a Git branch exists. A successful public deployment updates the article's publication card and marks the matching warning resolved with a link to the successful message. The warning retains its original details, including any nonblocking conversion advisories. Later public revisions appear in the article thread. Missing receipts for new messages require inspection before resending.
 
 Notion status writeback retries transient failures and leaves newer human edits alone. Its API does not provide atomic compare-and-swap for page properties, so avoid changing status while a publication is completing. The final pre-merge source check protects the reviewed article content.
 

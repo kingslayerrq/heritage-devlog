@@ -26,7 +26,7 @@ the site interface; see the [language policy](../README.md#language-policy).
 4. The trusted workflow creates a PR, validates the exact revision, and automatically
    merges content that passes. The live-site link arrives in Discord after deployment.
 5. To edit an existing post, update main, create a new branch and edit its Markdown.
-   Keep its filename/URL and optional `entryId` stable. Edits get a separate Discord report.
+   Keep its filename/URL and optional `entryId` stable. Edits update the original Discord card and post a revision in its thread.
 
 Local unresolved-author warnings are verified strictly in CI using the bot's
 authenticated, freshly checked registry. Public cached snapshots are never an
@@ -183,12 +183,25 @@ Report kinds:
 - A finished private entry (new or edited) produces a private confirmation in the alerts channel with no article link. Returning it to public counts as publication.
 - Media referenced only by private or draft entries is removed from the built site; the files remain in the public repository.
 
-The bot persists a reservation before a webhook request and the returned message
-ID afterward. Keys use repository/event/article/revision rather than workflow run
-number. Repeated runs and concurrent requests do not generate duplicate pings.
-The webhook request uses `wait=true`; network failure, a server error or a missing
-receipt is uncertain and blocks automatic resend. A confirmed unsent 4xx response
-can be retried. This stores delivery metadata, not article content history.
+The publication channel keeps one card per article. The first update opens a
+thread beneath the card. Later revisions use the same thread, with verified
+recipient mentions on the revision. Edits to the parent message are quiet.
+The alerts channel groups diagnostics by article, or by pull request or workflow
+when several articles share a diagnostic. After a verified public deployment and
+Discord receipt, a matching warning keeps its original details and gains a green
+“✅ 已解决 · 发布成功” status, resolution time, and a link to the publication message.
+Nonblocking advisories can still describe the published version. Private-only
+confirmations stay in the alerts channel.
+
+Deploy the compatible Heritage receipt service before enabling this publisher.
+Delamain needs View Channel, Read Message History, Create Public Threads and Send
+Messages in Threads in both configured text channels. Keep the existing webhooks
+and configure separate publication and alerts channels. The publisher can adopt a
+previous message when a matching event receipt and its originating webhook confirm
+its identity. Other historical messages stay in place. Per-card reservations and
+per-revision receipts survive restarts. A network failure, server error or missing
+receipt after a new post blocks automatic resend until inspected. An edit to a
+known message can retry safely.
 
 After an uncertain delivery, inspect Discord first. The bot repository's
 `scripts/devlog-report-recovery.js` can reconcile the report as sent with its
