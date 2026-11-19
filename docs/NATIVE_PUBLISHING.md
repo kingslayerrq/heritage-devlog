@@ -30,8 +30,8 @@ the site interface; see the [language policy](../README.md#language-policy).
 
 Local unresolved-author warnings are verified strictly in CI using the bot's
 authenticated, freshly checked registry. Public cached snapshots are never an
-authorization source. Existing sample articles remain visible under their original
-demo credits; new articles need real registered authors.
+authorization source. The sample articles and demo profiles have been removed;
+every article needs real registered authors.
 
 Content-only changes include approved Markdown and media paths. Site code,
 workflows, dependencies, and generated identities are rejected for non-owner

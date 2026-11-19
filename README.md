@@ -97,7 +97,7 @@ Optional `entryId` is reserved for stable source tracking. Ordinary Git articles
 
 ### Text styles and fonts
 
-Markdown controls structure and emphasis; the site theme controls the fonts, sizes, and colors. Article headings use the site's display serif, body text uses its reading serif, and code uses monospace. Authors cannot select arbitrary font families or use inline CSS. The template contains copyable examples of:
+Markdown controls structure and emphasis; the site theme controls the fonts, sizes, and colors. Article headings use the site's display serif, body text and captions use its reading serif, and code uses monospace. The handwriting font is decoration for names, dates, and small labels around an article; it never sets article text. Authors cannot select arbitrary font families or use inline CSS. The template contains copyable examples of:
 
 | Style | Syntax |
 | --- | --- |
@@ -136,7 +136,7 @@ Use English captions and descriptive alt text. Add the actual files before enabl
 | Build notes | `<hx-build version="0.3.1" changelist="1482" date="2026-11-11">` around a list |
 | Note or clue | `<hx-note>` or `<hx-note kind="clue">` around text |
 
-Leave blank lines inside gallery, build, and note wrappers. Close every `hx-*` tag. The [template](templates/devlog-entry.md) includes complete examples; the [sample reference article](src/content/posts/2026-11-11-everything-a-page-can-hold.md) shows richer blocks in context. Do not copy its demo author credits.
+Leave blank lines inside gallery, build, and note wrappers. Close every `hx-*` tag. The [template](templates/devlog-entry.md) includes complete examples of every block.
 
 Supported uploads: PNG, JPEG, WebP, GIF, AVIF, static SVG, MP4, WebM, self-contained GLB, PDF, ZIP, and TXT. Each file is limited to **25 MiB**; article files are limited to **256 KiB**. File bytes must match the extension. GLB textures and buffers must be embedded. Standalone audio embeds are not currently supported.
 
@@ -201,7 +201,7 @@ The export is one-way. It is not a submission format: to publish or edit, use th
 
 Commit author names, article credits, and candidate author JSON cannot establish the submitter's identity. The verified numeric GitHub account binding does that.
 
-The two existing demo articles retain their demo credits only while their approved content matches exactly. New articles and ordinary edits to demo articles require real registered authors; do not reuse demo credits in your template copy.
+The sample articles and their demo author profiles have been removed. The IDs `heritage-team` and `sample-author` stay reserved and cannot be credited on any article.
 
 ## Discord reports
 

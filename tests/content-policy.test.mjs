@@ -67,14 +67,11 @@ test('new articles cannot use unregistered or demo coauthors', t => {
   assert.equal(f.check([person]).errors.filter(issue => issue.code === 'post.unknown-author').length, 2);
 });
 
-test('existing sample articles remain valid but cannot be copied under demo identities', t => {
-  const f = fixture(t);
-  for (const name of ['2026-11-10-opening-the-door.md', '2026-11-11-everything-a-page-can-hold.md']) f.put('src/content/posts/' + name, readFileSync(resolve('src/content/posts/' + name), 'utf8'));
-  for (const id of ['heritage-team', 'sample-author']) f.put('src/content/authors/' + id + '.json', JSON.stringify({ name: id, demo: true }));
-  for (const name of ['hall', 'study', 'attic', 'blockout', 'lit']) f.put('public/media/sample/' + name + '.svg', '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>');
-  assert.equal(f.check([person]).errors.length, 0, JSON.stringify(f.check([person]).issues));
-  f.put('src/content/posts/2026-11-12-copied.md', readFileSync(resolve('src/content/posts/2026-11-10-opening-the-door.md'), 'utf8'));
-  assert.equal(has(f.check([person]), 'post.unknown-author'), true);
+test('the retired sample articles get no exemption for demo identities', t => {
+  const f = fixture(t, entry().replace('[author-one]', '[heritage-team]'));
+  f.put('src/content/authors/heritage-team.json', JSON.stringify({ name: 'heritage-team', demo: true }));
+  f.put('src/content/posts/2026-11-10-opening-the-door.md', entry().replace('[author-one]', '[heritage-team]'));
+  assert.equal(f.check([person]).errors.filter(issue => issue.code === 'post.unknown-author').length, 2);
 });
 
 test('all existing rich blocks and literal code examples remain valid', t => {

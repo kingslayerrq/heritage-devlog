@@ -2,7 +2,6 @@
 // Parse Markdown/HTML rather than searching raw prose for suspicious strings.
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, extname, join, relative, resolve } from 'node:path';
-import { createHash } from 'node:crypto';
 import { isUtf8 } from 'node:buffer';
 import yaml from 'js-yaml';
 import { unified } from 'unified';
@@ -13,10 +12,6 @@ import { AUTHOR_ID, DEMO_AUTHORS, DISCORD_ID, GITHUB_LOGIN, profilesFromPeople, 
 
 export const DISCIPLINES = ['tech', 'art', 'design', 'audio', 'narrative', 'production'];
 export const MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.svg', '.mp4', '.webm', '.glb', '.pdf', '.zip', '.txt']);
-export const DEMO_POSTS = Object.freeze({
-  'src/content/posts/2026-11-10-opening-the-door.md': '8388862e40f4bcc9b75f4d3d38ddc53628606e3c9c76657e4d09dc274939277d',
-  'src/content/posts/2026-11-11-everything-a-page-can-hold.md': '0cc01de4ef166bd54f5e659fca647071bb97244a88f6d5af677dd04a26164215',
-});
 const MAX_DOCUMENT = 256 * 1024, MAX_MEDIA = 25 * 1024 * 1024, WARN_MEDIA = 800 * 1024 * 1024;
 const POST_KEYS = new Set(['entryId', 'title', 'date', 'discipline', 'authors', 'summary', 'tags', 'cover', 'coverAlt', 'visibility', 'draft']);
 const AUTHOR_KEYS = new Set(['name', 'avatar', 'discord', 'github', 'githubId', 'generated', 'active', 'demo', 'role', 'bio', 'discipline', 'links']);
@@ -41,7 +36,6 @@ const TEXT_ATTRS = new Set(['title', 'lang', 'dir']);
 const parser = unified().use(remarkParse).use(remarkMath);
 const text = value => typeof value === 'string' && value.trim() !== '';
 const normalized = value => value.replace(/\r\n/g, '\n');
-const hash = value => createHash('sha256').update(normalized(value)).digest('hex');
 const keyLine = (lines, key) => Math.max(1, lines.findIndex(line => line.startsWith(key + ':')) + 1);
 const slash = value => value.replace(/\\/g, '/');
 
@@ -265,7 +259,6 @@ export function validateContent({ root, people, paths, allowUnresolvedAuthors = 
     const { data, lines, body } = parsed, at = key => keyLine(lines, key);
     const post = { path, slug: path.slice('src/content/posts/'.length, -3), ...parsed };
     posts.push(post);
-    const demo = DEMO_POSTS[path] === hash(source);
     const filename = basename(file, '.md');
     if (!/^\d{4}-\d{2}-\d{2}-[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*$/u.test(filename)) report('error', path, 1, 'post.filename', '文件名应为 YYYY-MM-DD-简短标题.md。', '使用日期和字母、中文或数字；用连字符分隔。');
     for (const key of Object.keys(data)) if (!POST_KEYS.has(key)) report('error', path, at(key), 'metadata.field', '未知文章字段：' + key);
@@ -280,7 +273,7 @@ export function validateContent({ root, people, paths, allowUnresolvedAuthors = 
       for (const id of data.authors) {
         const author = byAuthor.get(id);
         if (!author && allowUnresolvedAuthors && !registry && !DEMO_AUTHORS.has(id)) report('warning', path, at('authors'), 'post.identity-deferred', '本地尚未同步作者 ' + id + '；发布前 GitHub 会验证真实 Discord 身份。', '运行 npm run sync:authors 刷新本地资料。');
-        else if (!author || (DEMO_AUTHORS.has(id) && !demo)) report('error', path, at('authors'), 'post.unknown-author', '作者尚未登记，或使用了示例作者：' + id, '使用 /devlog-access guide 登记，并填写真实作者 ID。');
+        else if (!author || DEMO_AUTHORS.has(id)) report('error', path, at('authors'), 'post.unknown-author', '作者尚未登记，或使用了示例作者：' + id, '使用 /devlog-access guide 登记，并填写真实作者 ID。');
       }
     }
     if (data.summary === undefined) report('warning', path, 1, 'post.summary', '没有 summary，首页与 Discord 将只显示标题。', '添加一两句摘要。');
