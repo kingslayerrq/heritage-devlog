@@ -48,6 +48,8 @@ The database owner adds the **Visibility** select (options Public, Private) and 
 
 GitHub polls approximately every five minutes; scheduled jobs can be delayed. The owner can run **Import Notion devlogs** manually on main. There is no Discord writing panel, export upload or second publish confirmation.
 
+The **Copy for Notion** and **Download Markdown** buttons on a published article are a separate, one-way export for readers ([README](../README.md#download-or-copy-an-entry)). A page created from that export is not connected to this pipeline; putting it in the Devlog entries database would submit it as a new entry.
+
 ## Formatting and media
 
 Supported content includes paragraphs, three heading levels, bold, italic, underline, strikethrough, inline code, links, lists, tasks, quotes, fenced code, dividers, callouts, simple tables, equations, bookmarks, images, supported videos, downloadable files and GLB models.

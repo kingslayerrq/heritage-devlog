@@ -20,8 +20,11 @@ const { post, number, newer, older } = Astro.props;
 const { Content } = await render(post);
 const authors = await postAuthors(post);
 const craft = DISCIPLINES[post.data.discipline];
+// The built site serves the export as a file at /posts/<id>.md. Only the dev server, which applies
+// `trailingSlash: 'always'` to dynamic endpoints, needs the extra slash.
+const markdown = url(`/posts/${post.id}.md`) + (import.meta.env.DEV ? '/' : '');
 ---
-<Base title={post.data.title} description={post.data.summary} image={post.data.cover}>
+<Base title={post.data.title} description={post.data.summary} image={post.data.cover} markdown={markdown}>
   <article class="letter" style={`view-transition-name:${transitionName(post.id)}`}>
     <header class="letter-head">
       <p class="eyebrow">Entry {number} · <time datetime={post.data.date.toISOString()}>{longDate(post.data.date)}</time></p>
@@ -39,6 +42,13 @@ const craft = DISCIPLINES[post.data.discipline];
     {post.data.tags.length > 0 && (
       <p class="letter-tags">Filed under {post.data.tags.map(tag => <a class="tag" href={url(`/tags/${tagSlug(tag)}/`)}>{tag}</a>)}</p>
     )}
+    <div class="letter-take">
+      <span>Take this entry with you</span>
+      <a class="take" href={markdown} download={`${post.id}.md`}>Download Markdown</a>
+      <button class="take" type="button" data-copy-md={markdown} hidden>Copy for Notion</button>
+      <span class="letter-take-status" data-copy-status role="status"></span>
+      <p class="letter-take-hint">Paste the copy into a Notion page, or bring the file in with Notion's Import, Text &amp; Markdown. Images and videos stay linked to this site.</p>
+    </div>
     {authors.length > 0 && (
       <section class="hands" aria-label="About the authors">
         {authors.map(author => (

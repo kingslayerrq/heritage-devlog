@@ -22,13 +22,13 @@
     "astro": "5.18.2",
     "katex": "0.16.47",
     "mermaid": "11.17.2",
+    "parse5": "8.1.1",
     "rehype-katex": "7.0.1",
-    "remark-math": "6.0.0"
+    "remark-math": "6.0.0",
+    "remark-parse": "11.0.0",
+    "unified": "11.0.5"
   },
   "devDependencies": {
-    "js-yaml": "4.3.2",
-    "unified": "11.0.5",
-    "remark-parse": "11.0.0",
-    "parse5": "8.1.1"
+    "js-yaml": "4.3.2"
   }
 }

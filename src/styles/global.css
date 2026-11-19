@@ -147,6 +147,11 @@ a.stamp:hover { color: var(--page); background: var(--craft); transform: rotate(
 .letter-cover { margin: 0 calc(-1 * clamp(1.5rem, 6vw, 4rem)) 2.5rem; overflow: hidden; }
 .letter-cover img { width: 100%; filter: sepia(0.12); }
 .letter-tags { max-width: var(--measure); margin: 3rem auto 0; padding-top: 1.25rem; border-top: 1px solid var(--rule); color: var(--ink-soft); font-style: italic; }
+.letter-take { max-width: var(--measure); margin: 1.5rem auto 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem 0.9rem; color: var(--ink-soft); font-style: italic; }
+.take { font: inherit; font-style: normal; font-variant: small-caps; letter-spacing: 0.08em; font-size: 0.85rem; color: var(--moss); background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 0.3rem 0.9rem 0.4rem; text-decoration: none; cursor: pointer; }
+.take:hover, .take:focus-visible { border-color: var(--moss); }
+.letter-take-status { font-size: 0.9rem; }
+.letter-take-hint { flex-basis: 100%; margin: 0; font-size: 0.9rem; }
 .turn { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2.5rem; }
 .turn a { font-family: var(--display); font-size: 1.25rem; color: var(--ink); text-decoration: none; }
 .turn a:hover { color: var(--rust); }
