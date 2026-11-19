@@ -3,7 +3,7 @@ import { publicPosts, postAuthors, url, SITE } from '../lib/site';
 import { DISCIPLINES } from '../lib/disciplines';
 
 // JSON Feed 1.1. Automations (Discord, Notion mirrors, etc.) can read every public post from here,
-// including its raw Markdown in `content_text`.
+// including its raw Markdown in `content_text`. A flattened, portable copy of each post is at /posts/<id>.md.
 export async function GET({ site }: APIContext) {
   const absolute = (path: string) => new URL(url(path), site).href;
   const posts = await Promise.all((await publicPosts()).map(async post => Object.assign(post, { people: await postAuthors(post) })));

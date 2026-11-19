@@ -178,6 +178,17 @@ Add `visibility: private` to an entry's metadata to keep it off the website. A p
 
 **Private does not mean secret.** This repository is public, so the Markdown, media and full history of a private entry stay readable on GitHub. The validator reminds you of this with a warning. Never commit confidential material; `internal` and other values are rejected. Search engines and other sites may also keep copies of a page that was public before it was taken down.
 
+## Download or copy an entry
+
+Every published article page offers **Download Markdown** and **Copy for Notion**. Both give the same portable file, also served at `/posts/<article-filename>.md`:
+
+- Paste the copy into a Notion page, or use Notion's **Import → Text & Markdown** with the downloaded file.
+- Site-only blocks are flattened: galleries and comparisons become plain images with captions, videos, models and blueprints become links (YouTube links embed in Notion), notes become quotes, and build notes become a heading line above their list. Code, diagrams, tables and math are unchanged.
+- Images and videos are not bundled. They stay linked to the published site, so they stop loading if the entry is later taken private.
+- Author comments are removed. Private and draft entries have no export.
+
+The export is one-way. It is not a submission format: to publish or edit, use the Git or Notion authoring routes above.
+
 ## What contributors may change
 
 | Change | Policy |

@@ -3,8 +3,8 @@ import 'katex/dist/katex.min.css';
 import '../styles/global.css';
 import { SITE, url } from '../lib/site';
 
-interface Props { title?: string; description?: string; image?: string }
-const { title, description = SITE.description, image } = Astro.props;
+interface Props { title?: string; description?: string; image?: string; markdown?: string }
+const { title, description = SITE.description, image, markdown } = Astro.props;
 const pageTitle = title ? `${title} · ${SITE.title}` : `${SITE.title} · a development journal`;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 ---
@@ -20,6 +20,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <meta property="og:description" content={description} />
     <meta property="og:type" content={title ? 'article' : 'website'} />
     {image && <meta property="og:image" content={new URL(url(image), Astro.site)} />}
+    {markdown && <link rel="alternate" type="text/markdown" title="This entry as Markdown" href={markdown} />}
     <link rel="alternate" type="application/feed+json" title={SITE.title} href={url('/feed.json')} />
     <link rel="alternate" type="application/rss+xml" title={SITE.title} href={url('/rss.xml')} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -54,6 +55,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <script>
       import '../scripts/motion.js';
       import '../scripts/blocks.js';
+      import '../scripts/export.js';
     </script>
   </body>
 </html>
