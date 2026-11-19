@@ -117,8 +117,8 @@ test('code, diagrams, tables and math pass through untouched', () => {
   assert.equal(flat(body), body);
 });
 
-test('published entries export with no site-only blocks or relative media', () => {
-  for (const name of ['2026-11-18-missing-frame-prototype', '2026-11-11-everything-a-page-can-hold', '2026-11-12-media-blocks-check']) {
+test('a published entry exports with no site-only blocks or relative media', () => {
+  for (const name of ['2026-11-18-missing-frame-prototype']) {
     const source = readFileSync(new URL(`../src/content/posts/${name}.md`, import.meta.url), 'utf8');
     const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
     // Fenced examples legitimately show the raw syntax, so look only outside code fences.

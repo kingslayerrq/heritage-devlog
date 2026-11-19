@@ -20,8 +20,8 @@ const posts = defineCollection({
   }).strict(),
 });
 
-// Generated from verified platform identities. Only the two existing demonstration profiles
-// may omit Discord, and the shared policy restricts their use to unchanged sample articles.
+// Generated from verified platform identities. The `demo` flag belonged to the two retired
+// sample profiles; the shared policy rejects those IDs as credits on any article.
 const authors = defineCollection({
   loader: glob({ pattern: '**/*.json', base: './src/content/authors' }),
   schema: z.object({

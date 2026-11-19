@@ -14,6 +14,8 @@
   --craft: var(--moss);
   --serif: 'EB Garamond', 'Noto Serif SC', Georgia, 'Times New Roman', serif;
   --display: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+  /* Handwriting is decoration only: names, dates, counts and small labels around an entry.
+     Never use it for anything inside an entry's text (.prose), captions included. */
   --hand: 'Homemade Apple', 'Bradley Hand', cursive;
   --mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
   --measure: 40rem;
@@ -169,7 +171,8 @@ a.stamp:hover { color: var(--page); background: var(--craft); transform: rotate(
 .prose blockquote { margin-inline: 0; padding-left: 1.25rem; border-left: 2px solid var(--moss); font-style: italic; color: var(--ink-soft); }
 .prose img { margin-inline: auto; box-shadow: var(--shadow); border: 6px solid #fff; border-radius: 1px; }
 .prose figure { margin-inline: 0; }
-.prose figcaption { font-family: var(--hand); font-size: 0.68rem; color: var(--ink-soft); text-align: center; margin-top: 0.75rem; }
+.prose figcaption { font-style: italic; font-size: 0.92rem; line-height: 1.45; color: var(--ink-soft); text-align: center; margin-top: 0.75rem; }
+.prose .hand { font-family: inherit; font-size: inherit; }
 .prose :not(pre) > code { font-family: var(--mono); font-size: 0.82em; background: var(--paper); padding: 0.1em 0.35em; border-radius: 3px; }
 .prose pre { font-family: var(--mono); font-size: 0.8rem; line-height: 1.55; padding: 1rem 1.25rem; overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: #fdfaf2 !important; }
 .prose pre.mermaid { text-align: center; border: 0; background: transparent !important; white-space: pre; }
@@ -199,7 +202,7 @@ hx-video, hx-gallery, hx-compare, hx-model, hx-blueprint, hx-build, hx-note { di
 .hx-lightbox { border: 0; padding: 0; background: transparent; max-width: 94vw; max-height: 94vh; cursor: zoom-out; }
 .hx-lightbox::backdrop { background: rgb(20 16 10 / 0.88); }
 .hx-lightbox img { max-width: 94vw; max-height: 86vh; border: 8px solid #fff; }
-.hx-lightbox p { font-family: var(--hand); font-size: 0.7rem; color: #efe6d3; text-align: center; margin: 0.75rem 0 0; }
+.hx-lightbox p { font-family: var(--serif); font-style: italic; font-size: 0.95rem; color: #efe6d3; text-align: center; margin: 0.75rem 0 0; }
 .hx-compare-frame { position: relative; --pos: 50%; box-shadow: var(--shadow); line-height: 0; user-select: none; }
 .hx-compare-frame img { width: 100%; border: 0; box-shadow: none; }
 .hx-compare-top { position: absolute; inset: 0; height: 100%; object-fit: cover; clip-path: inset(0 calc(100% - var(--pos)) 0 0); }
